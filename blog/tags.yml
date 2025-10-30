@@ -1,0 +1,44 @@
+devops:
+  label: DevOps
+  permalink: /devops
+  description: DevOps practices and tools
+
+backend:
+  label: Backend
+  permalink: /backend
+  description: Backend development
+
+frontend:
+  label: Frontend
+  permalink: /frontend
+  description: Frontend development
+
+mobile:
+  label: Mobile
+  permalink: /mobile
+  description: Mobile development
+
+blockchain:
+  label: Blockchain
+  permalink: /blockchain
+  description: Blockchain and Web3
+
+ai-ml:
+  label: AI & ML
+  permalink: /ai-ml
+  description: AI and Machine Learning
+
+security:
+  label: Security
+  permalink: /security
+  description: Security best practices
+
+tutorial:
+  label: Tutorial
+  permalink: /tutorial
+  description: Step-by-step tutorials
+
+tips:
+  label: Tips
+  permalink: /tips
+  description: Quick tips and tricks
