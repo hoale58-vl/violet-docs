@@ -2,30 +2,53 @@
 
 Best practices and experiences in DevOps, CI/CD, Infrastructure as Code, and deployment strategies.
 
-## 📋 Topics
+## 📚 Categories
 
-- CI/CD Pipelines
-- Docker & Containerization
-- Kubernetes & Orchestration
-- Infrastructure as Code (Terraform, CloudFormation)
-- Monitoring & Logging
-- Configuration Management
-- GitOps
-- Cloud Platforms (AWS, GCP, Azure)
+This section is organized into the following subcategories:
 
-## 🛠️ Common Tools
+### 🔄 CI/CD
+Continuous Integration and Continuous Deployment pipelines, automation, and best practices.
+- GitHub Actions, GitLab CI, Jenkins
+- Automated testing and deployment
+- Release management
 
-- Docker, Docker Compose
-- Kubernetes, Helm
-- Jenkins, GitHub Actions, GitLab CI
-- Terraform, Ansible
-- Prometheus, Grafana
-- ELK Stack, Datadog
+### 🐳 Docker
+Container best practices, Docker CLI commands, and optimization techniques.
+- Best practices and patterns
+- CLI cheat sheet
+- Multi-stage builds and optimization
 
-## 📝 Quick Tips
+### ☸️ Kubernetes (K8s)
+Container orchestration with Kubernetes across different platforms.
+- Amazon EKS
+- Google GKE
+- Minikube (local development)
+- Helm (package manager)
 
-> Add your DevOps best practices and learnings here!
+### ☁️ Cloud Platforms
+Cloud infrastructure and services on major platforms.
+- AWS (Amazon Web Services)
+- GCP (Google Cloud Platform)
+- Best practices and architecture patterns
+
+### 🏗️ Terraform
+Infrastructure as Code with Terraform.
+- Configuration and state management
+- Module development
+- Multi-cloud provisioning
+
+### 📊 Monitoring
+System monitoring, observability, and alerting.
+- Prometheus
+- Grafana
+- Logging and metrics
+
+### 🛠️ Useful Tools
+Essential DevOps tools and utilities for daily operations.
+- CLI tools
+- Debugging utilities
+- Productivity enhancers
 
 ---
 
-*Start adding content by creating new markdown files in the `docs/devops/` folder.*
+*Explore the subcategories above to dive deeper into each topic.*
