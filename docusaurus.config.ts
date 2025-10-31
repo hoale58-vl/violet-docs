@@ -65,7 +65,11 @@ const config: Config = {
     ],
   ],
 
-  themes: ['@docusaurus/theme-live-codeblock'],
+  themes: ['@docusaurus/theme-live-codeblock', '@docusaurus/theme-mermaid'],
+
+  markdown: {
+    mermaid: true,
+  },
 
   themeConfig: {
     // Replace with your project's social card
@@ -181,6 +185,7 @@ const config: Config = {
         'sql',
         'graphql',
         'solidity',
+        'mermaid',
       ],
     },
     algolia: {
