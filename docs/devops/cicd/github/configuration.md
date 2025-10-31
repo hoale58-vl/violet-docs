@@ -1,155 +1,122 @@
 # Configuration Reference
 
-Complete reference for all GitHub Actions workflow syntax and configuration options.
+Complete GitHub Actions workflow syntax reference with visual guides.
 
 ## Workflow Structure
 
+```mermaid
+graph TD
+    A[Workflow File] --> B[name & run-name]
+    A --> C[on: Triggers]
+    A --> D[env: Variables]
+    A --> E[permissions]
+    A --> F[concurrency]
+    A --> G[defaults]
+    A --> H[jobs: Required]
+
+    H --> J1[Job 1]
+    H --> J2[Job 2]
+
+    J1 --> S1[runs-on]
+    J1 --> S2[steps]
+    J1 --> S3[env]
+    J1 --> S4[strategy]
+
+    S2 --> ST1[Step 1: uses/run]
+    S2 --> ST2[Step 2: uses/run]
+```
+
+### Basic Structure
+
 ```yaml
-name: Workflow Name              # Optional
-run-name: Custom run name        # Optional, can use expressions
-
-on: [push, pull_request]         # Trigger events
-
-env:                             # Environment variables
+name: Workflow Name
+on: [push, pull_request]
+env:
   GLOBAL_VAR: value
-
-permissions:                     # Token permissions
+permissions:
   contents: read
-
-concurrency:                     # Concurrency control
-  group: ${{ github.workflow }}
-
-defaults:                        # Default settings
-  run:
-    shell: bash
-
-jobs:                           # Required
+jobs:
   job-name:
-    # Job configuration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "Hello"
 ```
 
----
+## Workflow Triggers
 
-## Workflow Triggers (`on`)
+### Trigger Types Overview
 
-### Event Triggers
+| Trigger | Use Case | Example |
+|---------|----------|---------|
+| `push` | Code pushed to repo | Branch/tag filtering |
+| `pull_request` | PR opened/updated | PR lifecycle events |
+| `schedule` | Cron-based | Daily builds, cleanup |
+| `workflow_dispatch` | Manual trigger | Deploy on-demand |
+| `workflow_call` | Reusable workflows | Call from other workflows |
+| `repository_dispatch` | External API trigger | Webhook integrations |
 
-```yaml
-# Single event
-on: push
+### Common Event Patterns
 
-# Multiple events
-on: [push, pull_request, workflow_dispatch]
+#### push - Branch & Path Filtering
 
-# Event with configuration
-on:
-  push:
-    branches:
-      - main
-      - 'releases/**'
-    tags:
-      - 'v*'
-    paths:
-      - 'src/**'
-      - '!src/**/*.test.js'
-    paths-ignore:
-      - '**.md'
-```
-
-### Common Events
-
-#### push
 ```yaml
 on:
   push:
-    branches:
-      - main
-      - develop
-      - 'feature/**'       # Wildcard
-      - '!feature/test'    # Exclude
-    tags:
-      - v1.*
-      - v2.*
-    paths:
-      - '**.js'
-      - 'src/**'
-    paths-ignore:
-      - 'docs/**'
+    branches: [main, develop, 'feature/**', '!feature/test']
+    paths: ['src/**', '!src/**/*.test.js']
+    tags: ['v*']
 ```
 
-#### pull_request
-```yaml
-on:
-  pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - closed
-    branches:
-      - main
-```
+#### pull_request - Types
 
-**Available types:**
-- `opened`, `edited`, `closed`, `reopened`
-- `synchronize` (new commits pushed)
-- `assigned`, `unassigned`
-- `labeled`, `unlabeled`
-- `locked`, `unlocked`
-- `review_requested`, `review_request_removed`
-- `ready_for_review`, `converted_to_draft`
+| Type | When | Common Use |
+|------|------|------------|
+| `opened` | PR created | Initial checks |
+| `synchronize` | New commits | Re-run tests |
+| `reopened` | PR reopened | Resume checks |
+| `closed` | PR closed | Cleanup |
+| `ready_for_review` | Draft → ready | Full CI |
+| `review_requested` | Review asked | Notify team |
 
-#### pull_request_target
-```yaml
-on:
-  pull_request_target:
-    types: [opened, synchronize]
-```
+#### schedule - Cron Jobs
 
-**Use for:**
-- Running workflows from forks with write permissions
-- Be careful with security implications
+| Pattern | Meaning | Example Use |
+|---------|---------|-------------|
+| `0 0 * * *` | Daily at midnight | Cleanup, backups |
+| `0 */6 * * *` | Every 6 hours | Periodic checks |
+| `0 9 * * 1` | Monday 9 AM | Weekly reports |
+| `*/15 * * * *` | Every 15 min | Health checks |
 
-#### schedule
 ```yaml
 on:
   schedule:
-    - cron: '0 0 * * *'      # Daily at midnight
-    - cron: '0 */6 * * *'    # Every 6 hours
-    - cron: '0 9 * * 1'      # Every Monday at 9 AM
+    - cron: '0 0 * * *'
 ```
 
-**Cron syntax:** `minute hour day month weekday`
+#### workflow_dispatch - Manual Trigger
 
-#### workflow_dispatch
+| Input Type | Use Case | Example |
+|------------|----------|---------|
+| `string` | Free text | Version number |
+| `boolean` | Toggle | Dry run flag |
+| `choice` | Dropdown | Environment selection |
+| `environment` | Environment select | Deploy target |
+
 ```yaml
 on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment to deploy'
-        required: true
         type: choice
-        options:
-          - dev
-          - staging
-          - production
-        default: 'dev'
-      version:
-        description: 'Version to deploy'
-        required: false
-        type: string
+        options: [dev, staging, production]
       dry-run:
-        description: 'Dry run'
-        required: false
         type: boolean
         default: false
 ```
 
-**Input types:**
-- `string`, `boolean`, `choice`, `environment`
+#### workflow_call - Reusable Workflows
 
-#### workflow_call
 ```yaml
 on:
   workflow_call:
@@ -160,30 +127,19 @@ on:
     secrets:
       token:
         required: true
-    outputs:
-      result:
-        description: 'Result of the workflow'
-        value: ${{ jobs.build.outputs.result }}
 ```
 
-#### repository_dispatch
-```yaml
-on:
-  repository_dispatch:
-    types: [custom-event]
-```
+#### All Event Types
 
-#### Other Events
-- `issues`, `issue_comment`
-- `release`, `published`
-- `deployment`, `deployment_status`
-- `workflow_run`
-- `check_run`, `check_suite`
-- `create`, `delete`
-- `fork`, `watch`, `star`
-- `gollum` (wiki)
-- `page_build`
-- `public`
+| Category | Events |
+|----------|--------|
+| **Code** | `push`, `pull_request`, `pull_request_target` |
+| **Issues** | `issues`, `issue_comment` |
+| **Releases** | `release`, `published` |
+| **Deployments** | `deployment`, `deployment_status` |
+| **Workflow** | `workflow_run`, `workflow_dispatch`, `workflow_call` |
+| **Repository** | `create`, `delete`, `fork`, `watch` |
+| **External** | `repository_dispatch` |
 
 ---
 

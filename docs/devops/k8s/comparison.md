@@ -89,7 +89,10 @@ mindmap
       EC2
       Fargate
       Graviton ARM
+```
 
+```mermaid
+mindmap
   root((GKE))
     GCP Services
       Workload Identity

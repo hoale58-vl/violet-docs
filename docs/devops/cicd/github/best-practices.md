@@ -247,10 +247,6 @@ runs:
     node-version: '20'
 ```
 
-### 3. Keep Workflows DRY with YAML Anchors
-
-Use reusable workflows instead of YAML anchors (not supported in GitHub Actions).
-
 ## Workflow Design
 
 ### 1. Use Path Filters
@@ -374,73 +370,6 @@ jobs:
     npm run test
 ```
 
-## Debugging
-
-### 1. Enable Debug Logging
-
-```yaml
-- name: Debug information
-  run: |
-    echo "Event: ${{ github.event_name }}"
-    echo "Ref: ${{ github.ref }}"
-    echo "SHA: ${{ github.sha }}"
-    echo "Actor: ${{ github.actor }}"
-```
-
-### 2. Use `ACTIONS_STEP_DEBUG`
-
-Set repository secret `ACTIONS_STEP_DEBUG=true` for detailed logs.
-
-### 3. Use `tmate` for Interactive Debugging
-
-```yaml
-- name: Setup tmate session
-  if: failure()
-  uses: mxschmitt/action-tmate@v3
-  timeout-minutes: 30
-```
-
-## Documentation
-
-### 1. Add Workflow Descriptions
-
-```yaml
-name: CI Pipeline
-on: [push, pull_request]
-
-# Add description at the top
-# This workflow runs tests, linting, and builds the application
-# It runs on all pushes and pull requests
-```
-
-### 2. Comment Complex Logic
-
-```yaml
-- name: Calculate version
-  run: |
-    # Extract version from package.json
-    VERSION=$(jq -r .version package.json)
-
-    # Append commit SHA for non-release branches
-    if [[ "${{ github.ref }}" != refs/heads/main ]]; then
-      VERSION="${VERSION}-${GITHUB_SHA::7}"
-    fi
-
-    echo "VERSION=${VERSION}" >> $GITHUB_ENV
-```
-
-### 3. Use Meaningful Job and Step Names
-
-```yaml
-# Bad
-- name: Run script
-  run: ./script.sh
-
-# Good
-- name: Deploy application to production
-  run: ./deploy-production.sh
-```
-
 ## Cost Optimization
 
 ### 1. Use `paths-ignore` to Skip Unnecessary Runs
@@ -475,64 +404,6 @@ jobs:
     path: dist/
     retention-days: 5  # Auto-delete after 5 days
 ```
-
-## Monitoring and Notifications
-
-### 1. Send Status Notifications
-
-```yaml
-- name: Notify on failure
-  if: failure()
-  uses: 8398a7/action-slack@v3
-  with:
-    status: ${{ job.status }}
-    webhook_url: ${{ secrets.SLACK_WEBHOOK }}
-```
-
-### 2. Create GitHub Releases
-
-```yaml
-- name: Create Release
-  if: startsWith(github.ref, 'refs/tags/')
-  uses: softprops/action-gh-release@v1
-  with:
-    files: dist/*
-    generate_release_notes: true
-```
-
-### 3. Update Pull Request with Results
-
-```yaml
-- name: Comment PR
-  if: github.event_name == 'pull_request'
-  uses: actions/github-script@v7
-  with:
-    script: |
-      github.rest.issues.createComment({
-        issue_number: context.issue.number,
-        owner: context.repo.owner,
-        repo: context.repo.repo,
-        body: '✅ Build successful!'
-      })
-```
-
-## Summary Checklist
-
-- [ ] Pin action versions to commit SHA
-- [ ] Use minimal token permissions
-- [ ] Store sensitive data in secrets
-- [ ] Enable concurrency controls
-- [ ] Cache dependencies appropriately
-- [ ] Set timeout limits
-- [ ] Use path filters to skip unnecessary runs
-- [ ] Implement error handling
-- [ ] Add meaningful names and descriptions
-- [ ] Use reusable workflows for common patterns
-- [ ] Test workflows in feature branches first
-- [ ] Monitor workflow costs and optimize
-- [ ] Set up notifications for failures
-- [ ] Use environment protection for production
-- [ ] Document complex workflows
 
 ## Tags
 
