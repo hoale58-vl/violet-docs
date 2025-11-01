@@ -31,8 +31,6 @@ const sidebars: SidebarsConfig = {
           link: {type: 'doc', id: 'devops/k8s/intro'},
           items: [
             'devops/k8s/comparison',
-            'devops/k8s/eks',
-            'devops/k8s/gke',
             {
               type: 'category',
               label: '📦 Helm',
