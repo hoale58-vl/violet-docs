@@ -2,6 +2,82 @@
 
 Quick reference for the most commonly used Terraform commands.
 
+## Common Workflows
+
+### Initialize New Project
+```bash
+terraform init
+terraform fmt
+terraform validate
+terraform plan
+terraform apply
+```
+
+### HCL Syntax Quick
+
+```hcl
+resource "type" "name" {
+  argument = "value"
+}
+
+variable "name" {
+  type    = string
+  default = "value"
+}
+
+output "name" {
+  value = resource.type.name.id
+}
+
+data "type" "name" {
+  filter = "value"
+}
+
+locals {
+  name = "value"
+}
+
+module "name" {
+  source = "./path"
+  var    = "value"
+}
+
+lifecycle {
+  create_before_destroy = true
+  prevent_destroy       = true
+  ignore_changes        = [tags]
+}
+```
+
+### Update Infrastructure
+```bash
+terraform plan -out=tfplan
+terraform apply tfplan
+```
+
+### Import Existing Resource
+```bash
+terraform import aws_instance.web i-1234567890abcdef0
+terraform state show aws_instance.web
+```
+
+### Destroy Specific Resource
+```bash
+terraform destroy -target=aws_instance.test
+```
+
+### Change Backend
+```bash
+terraform init -reconfigure -backend-config=backend.hcl
+```
+
+### Debug
+```bash
+export TF_LOG=DEBUG
+terraform apply
+unset TF_LOG
+```
+
 ## Essential Commands
 
 | Command | Description | Example |
@@ -50,89 +126,30 @@ Quick reference for the most commonly used Terraform commands.
 | `-reconfigure` | Reconfigure backend | `terraform init -reconfigure` |
 | `-upgrade` | Upgrade providers | `terraform init -upgrade` |
 
-## HCL Syntax Quick Reference
-
-### Resource
-```hcl
-resource "type" "name" {
-  argument = "value"
-}
-```
-
-### Variable
-```hcl
-variable "name" {
-  type    = string
-  default = "value"
-}
-# Use: var.name
-```
-
-### Output
-```hcl
-output "name" {
-  value = resource.type.name.id
-}
-```
-
-### Data Source
-```hcl
-data "type" "name" {
-  filter = "value"
-}
-# Use: data.type.name.attribute
-```
-
-### Locals
-```hcl
-locals {
-  name = "value"
-}
-# Use: local.name
-```
-
-### Module
-```hcl
-module "name" {
-  source = "./path"
-  var    = "value"
-}
-# Use: module.name.output
-```
-
 ## Useful Functions
 
 | Function | Description | Example |
 |----------|-------------|---------|
-| `join(sep, list)` | Join list with separator | `join(",", ["a", "b"])` → "a,b" |
-| `split(sep, str)` | Split string | `split(",", "a,b")` → ["a", "b"] |
-| `length(list)` | Get length | `length([1,2,3])` → 3 |
-| `merge(map1, map2)` | Merge maps | `merge({a=1}, {b=2})` → {a=1, b=2} |
-| `lookup(map, key, default)` | Lookup with default | `lookup({a=1}, "b", 0)` → 0 |
+| `join(sep, list)` | Join list with separator | `join(",", ["a", "b"])` returns `"a,b"` |
+| `split(sep, str)` | Split string | `split(",", "a,b")` returns `["a", "b"]` |
+| `length(list)` | Get length | `length([1,2,3])` returns `3` |
+| `merge(map1, map2)` | Merge maps | `merge({a=1}, {b=2})` returns `{a=1, b=2}` |
+| `lookup(map, key, default)` | Lookup with default | `lookup({a=1}, "b", 0)` returns `0` |
 | `jsonencode(value)` | Encode to JSON | `jsonencode({a="b"})` |
 | `file(path)` | Read file | `file("${path.module}/file.txt")` |
 | `templatefile(path, vars)` | Template file | `templatefile("tpl", {name="x"})` |
-| `cidrsubnet(prefix, bits, num)` | Calculate subnet | `cidrsubnet("10.0.0.0/16", 8, 1)` → "10.0.1.0/24" |
-| `timestamp()` | Current timestamp | `timestamp()` → "2025-10-31T12:00:00Z" |
+| `cidrsubnet(prefix, bits, num)` | Calculate subnet | `cidrsubnet("10.0.0.0/16", 8, 1)` returns `"10.0.1.0/24"` |
+| `timestamp()` | Current timestamp | `timestamp()` returns `"2025-10-31T12:00:00Z"` |
 
 ## Meta-Arguments
 
 | Argument | Description | Example |
 |----------|-------------|---------|
-| `count` | Create multiple instances | `count = 3` → access via `count.index` |
-| `for_each` | Create from map/set | `for_each = var.instances` → access via `each.key`, `each.value` |
+| `count` | Create multiple instances | `count = 3` (access via `count.index`) |
+| `for_each` | Create from map/set | `for_each = var.instances` (access via `each.key`, `each.value`) |
 | `depends_on` | Explicit dependency | `depends_on = [aws_vpc.main]` |
 | `provider` | Use specific provider | `provider = aws.west` |
 | `lifecycle` | Lifecycle customization | See below |
-
-### Lifecycle Options
-```hcl
-lifecycle {
-  create_before_destroy = true
-  prevent_destroy       = true
-  ignore_changes        = [tags]
-}
-```
 
 ## Expressions
 
@@ -142,66 +159,6 @@ lifecycle {
 | For list | Transform list | `[for s in var.list : upper(s)]` |
 | For map | Transform map | `{for k, v in var.map : k => upper(v)}` |
 | Splat | Get all attributes | `aws_instance.web[*].id` |
-
-## Environment Variables
-
-```bash
-# AWS credentials
-export AWS_ACCESS_KEY_ID="..."
-export AWS_SECRET_ACCESS_KEY="..."
-export AWS_DEFAULT_REGION="us-east-1"
-
-# Terraform variables (prefix with TF_VAR_)
-export TF_VAR_environment="prod"
-export TF_VAR_instance_count=3
-
-# Terraform logging
-export TF_LOG=DEBUG          # TRACE, DEBUG, INFO, WARN, ERROR
-export TF_LOG_PATH=terraform.log
-
-# Plugin cache
-export TF_PLUGIN_CACHE_DIR="$HOME/.terraform.d/plugin-cache"
-```
-
-## Common Workflows
-
-### Initialize New Project
-```bash
-terraform init
-terraform fmt
-terraform validate
-terraform plan
-terraform apply
-```
-
-### Update Infrastructure
-```bash
-terraform plan -out=tfplan
-terraform apply tfplan
-```
-
-### Import Existing Resource
-```bash
-terraform import aws_instance.web i-1234567890abcdef0
-terraform state show aws_instance.web
-```
-
-### Destroy Specific Resource
-```bash
-terraform destroy -target=aws_instance.test
-```
-
-### Change Backend
-```bash
-terraform init -reconfigure -backend-config=backend.hcl
-```
-
-### Debug
-```bash
-export TF_LOG=DEBUG
-terraform apply
-unset TF_LOG
-```
 
 ## Tags
 
