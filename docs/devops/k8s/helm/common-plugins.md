@@ -1,6 +1,22 @@
-# Common Helm Plugins
+# Helm Plugins
 
 Most used and essential Helm plugins to enhance your workflow.
+
+## Quick Reference Table
+
+| Plugin | Repository | Most Used For |
+|--------|------------|---------------|
+| 🔍 [helm-diff](#helm-diff) | [GitHub](https://github.com/databus23/helm-diff) | Pre-upgrade review & change preview |
+| 🔐 [helm-secrets](#helm-secrets) | [GitHub](https://github.com/jkroepke/helm-secrets) | Git-based secrets with SOPS |
+| 📦 [helm-git](#helm-git) | [GitHub](https://github.com/aslafy-z/helm-git) | Install charts from Git repos |
+| 📤 [helm-push](#helm-push) | [GitHub](https://github.com/chartmuseum/helm-push) | Push to ChartMuseum/OCI registry |
+| ✅ [helm-unittest](#helm-unittest) | [GitHub](https://github.com/helm-unittest/helm-unittest) | Chart unit testing |
+| 📊 [helm-dashboard](#helm-dashboard) | [GitHub](https://github.com/komodorio/helm-dashboard) | Web UI for visual management |
+| ☁️ [helm-s3](#helm-s3) | [GitHub](https://github.com/hypnoglow/helm-s3) | Store charts in AWS S3 |
+| ☁️ [helm-gcs](#helm-gcs) | [GitHub](https://github.com/hayorov/helm-gcs) | Store charts in GCS |
+| 📈 [helm-monitor](#helm-monitor) | [GitHub](https://github.com/ContainerSolutions/helm-monitor) | Monitor releases with Prometheus |
+| 📋 [helm-schema-gen](#helm-schema-gen) | [GitHub](https://github.com/karuppiah7890/helm-schema-gen) | Generate values.schema.json |
+| 📝 [helm-docs](#helm-docs) | [GitHub](https://github.com/norwoodj/helm-docs) | Auto-generate chart documentation |
 
 ## Plugin Management
 
@@ -406,97 +422,6 @@ helm docs --dry-run
 **Repository:** [https://github.com/norwoodj/helm-docs](https://github.com/norwoodj/helm-docs)
 
 ---
-
-## Quick Reference Table
-
-| Plugin | Purpose | Most Used For |
-|--------|---------|---------------|
-| **helm-diff** | Show changes | Pre-upgrade review |
-| **helm-secrets** | Secrets management | Git-based secrets |
-| **helm-git** | Install from Git | Development workflow |
-| **helm-push** | Push to ChartMuseum | Private repositories |
-| **helm-unittest** | Unit testing | Chart testing |
-| **helm-dashboard** | Web UI | Visual management |
-| **helm-s3** | S3 backend | AWS deployments |
-| **helm-gcs** | GCS backend | GCP deployments |
-| **helm-monitor** | Monitoring | Production releases |
-| **helm-schema-gen** | Schema generation | Values validation |
-| **helm-docs** | Documentation | README generation |
-
-## Plugin Development
-
-### Create Custom Plugin
-
-```bash
-# Create plugin directory
-mkdir helm-myplugin
-cd helm-myplugin
-
-# Create plugin.yaml
-cat <<EOF > plugin.yaml
-name: "myplugin"
-version: "0.1.0"
-usage: "My custom Helm plugin"
-description: "Does something useful"
-command: "\$HELM_PLUGIN_DIR/myplugin.sh"
-EOF
-
-# Create script
-cat <<'EOF' > myplugin.sh
-#!/bin/bash
-echo "Hello from my plugin!"
-echo "Release: $1"
-EOF
-
-chmod +x myplugin.sh
-
-# Install locally
-helm plugin install .
-
-# Use plugin
-helm myplugin my-release
-```
-
-### Plugin Structure
-
-```
-helm-myplugin/
-├── plugin.yaml          # Plugin metadata
-├── myplugin.sh         # Main script
-├── README.md           # Documentation
-└── install-plugin.sh   # Optional installer
-```
-
-### plugin.yaml
-
-```yaml
-name: "myplugin"
-version: "0.1.0"
-usage: "usage description"
-description: "detailed description"
-command: "$HELM_PLUGIN_DIR/myplugin.sh"
-ignoreFlags: false
-useTunnel: false
-hooks:
-  install: "cd $HELM_PLUGIN_DIR && ./install-plugin.sh"
-  update: "cd $HELM_PLUGIN_DIR && ./install-plugin.sh"
-platformCommand:
-  - os: linux
-    arch: amd64
-    command: "$HELM_PLUGIN_DIR/myplugin-linux"
-  - os: darwin
-    arch: amd64
-    command: "$HELM_PLUGIN_DIR/myplugin-darwin"
-```
-
-## Installation Best Practices
-
-1. **Verify plugin source** before installing
-2. **Check compatibility** with your Helm version
-3. **Read documentation** for usage
-4. **Test in non-production** first
-5. **Keep plugins updated** regularly
-6. **Remove unused plugins** to reduce complexity
 
 ## Finding More Plugins
 

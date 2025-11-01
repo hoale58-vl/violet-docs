@@ -1,6 +1,35 @@
-# Common Helm Charts
+# Popular Charts
 
 Most used and popular Helm charts for common applications and services.
+
+## Quick Reference Table
+
+| Chart | Repository | Use Case |
+|-------|------------|----------|
+| 🗄️ [PostgreSQL](#postgresql) | [bitnami](https://charts.bitnami.com/bitnami) | Relational database |
+| 🗄️ [MySQL](#mysql) | [bitnami](https://charts.bitnami.com/bitnami) | Relational database |
+| 🗄️ [MongoDB](#mongodb) | [bitnami](https://charts.bitnami.com/bitnami) | NoSQL database |
+| ⚡ [Redis](#redis) | [bitnami](https://charts.bitnami.com/bitnami) | In-memory cache |
+| 📨 [RabbitMQ](#rabbitmq) | [bitnami](https://charts.bitnami.com/bitnami) | Message broker |
+| 📨 [Kafka](#kafka) | [bitnami](https://charts.bitnami.com/bitnami) | Event streaming |
+| 🌐 [NGINX Ingress](#nginx-ingress-controller) | [ingress-nginx](https://kubernetes.github.io/ingress-nginx) | Load balancer |
+| 🌐 [Traefik](#traefik) | [traefik](https://traefik.github.io/charts) | Load balancer + routing |
+| 📊 [Prometheus Stack](#prometheus-stack-kube-prometheus-stack) | [prometheus-community](https://prometheus-community.github.io/helm-charts) | Full monitoring |
+| 📊 [Grafana](#grafana) | [grafana](https://grafana.github.io/helm-charts) | Dashboards |
+| 📋 [Loki](#loki) | [grafana](https://grafana.github.io/helm-charts) | Log aggregation |
+| 🔀 [Istio](#istio) | [istio](https://istio-release.storage.googleapis.com/charts) | Service mesh |
+| 🔀 [Linkerd](#linkerd) | [linkerd](https://helm.linkerd.io/stable) | Lightweight service mesh |
+| 🚀 [ArgoCD](#argocd) | [argo](https://argoproj.github.io/argo-helm) | GitOps CD |
+| 🚀 [Jenkins](#jenkins) | [jenkins](https://charts.jenkins.io) | CI/CD platform |
+| 🔒 [cert-manager](#cert-manager) | [jetstack](https://charts.jetstack.io) | TLS certificates |
+| 💾 [Longhorn](#longhorn) | [longhorn](https://charts.longhorn.io) | Block storage |
+| 💾 [MinIO](#minio) | [minio](https://charts.min.io/) | S3-compatible storage |
+| 🔐 [Vault](#vault) | [hashicorp](https://helm.releases.hashicorp.com) | Secrets management |
+| 🔐 [External Secrets](#external-secrets-operator) | [external-secrets](https://charts.external-secrets.io) | Secrets sync |
+| 📝 [WordPress](#wordpress) | [bitnami](https://charts.bitnami.com/bitnami) | CMS platform |
+| 📝 [Ghost](#ghost) | [bitnami](https://charts.bitnami.com/bitnami) | Blogging platform |
+| ⚙️ [Knative](#knative) | Custom install | Serverless containers |
+| ⚙️ [OpenFaaS](#openfaas) | [openfaas](https://openfaas.github.io/faas-netes/) | Serverless functions |
 
 ## Databases
 
@@ -515,70 +544,6 @@ helm install openfaas openfaas/openfaas \
 **Repository:** `https://openfaas.github.io/faas-netes/`
 
 ---
-
-## Quick Reference Table
-
-| Category | Chart | Repository | Use Case |
-|----------|-------|------------|----------|
-| **Database** | postgresql | bitnami | Relational database |
-| **Database** | mysql | bitnami | Relational database |
-| **Database** | mongodb | bitnami | NoSQL database |
-| **Cache** | redis | bitnami | In-memory cache |
-| **Message Queue** | rabbitmq | bitnami | Message broker |
-| **Message Queue** | kafka | bitnami | Event streaming |
-| **Ingress** | ingress-nginx | ingress-nginx | Load balancer |
-| **Ingress** | traefik | traefik | Load balancer + routing |
-| **Monitoring** | kube-prometheus-stack | prometheus-community | Full monitoring |
-| **Monitoring** | grafana | grafana | Dashboards |
-| **Logging** | loki-stack | grafana | Log aggregation |
-| **Service Mesh** | istio | istio | Traffic management |
-| **CI/CD** | argo-cd | argo | GitOps |
-| **CI/CD** | jenkins | jenkins | CI/CD platform |
-| **Certificates** | cert-manager | jetstack | TLS certificates |
-| **Storage** | longhorn | longhorn | Block storage |
-| **Storage** | minio | minio | Object storage |
-| **Secrets** | vault | hashicorp | Secrets management |
-| **Secrets** | external-secrets | external-secrets | Secrets sync |
-
-## Finding More Charts
-
-### Artifact Hub
-
-Official Helm chart repository: [https://artifacthub.io/](https://artifacthub.io/)
-
-```bash
-# Search on Artifact Hub
-helm search hub [keyword]
-```
-
-### Bitnami Application Catalog
-
-Most popular repository with 100+ production-ready charts:
-[https://github.com/bitnami/charts](https://github.com/bitnami/charts)
-
-```bash
-helm repo add bitnami https://charts.bitnami.com/bitnami
-helm search repo bitnami/
-```
-
-### Installation Pattern
-
-```bash
-# 1. Add repository
-helm repo add [name] [url]
-
-# 2. Update repositories
-helm repo update
-
-# 3. Search for chart
-helm search repo [keyword]
-
-# 4. View values
-helm show values [repo]/[chart]
-
-# 5. Install with custom values
-helm install [release] [repo]/[chart] -f values.yaml
-```
 
 ## Tags
 

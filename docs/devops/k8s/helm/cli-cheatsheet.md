@@ -1,6 +1,54 @@
-# Helm CLI Cheat Sheet
+# CheatsSheet
 
 Quick reference for essential Helm commands.
+
+## Common Workflows
+
+### Install with Custom Values
+
+```bash
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm search repo wordpress
+helm show values bitnami/wordpress > values.yaml
+# Edit values.yaml
+helm install my-wordpress bitnami/wordpress -f values.yaml -n prod --create-namespace
+```
+
+### Upgrade Release
+
+```bash
+helm get values my-release > current-values.yaml
+# Edit current-values.yaml
+helm upgrade my-release bitnami/nginx -f current-values.yaml
+helm history my-release
+```
+
+### Rollback Release
+
+```bash
+helm history my-release
+helm rollback my-release 3
+helm status my-release
+```
+
+### Create and Package Chart
+
+```bash
+helm create my-chart
+helm lint my-chart
+helm template test my-chart
+helm package my-chart
+helm install my-release ./my-chart-0.1.0.tgz
+```
+
+### Debug Installation
+
+```bash
+helm install my-release ./chart --dry-run --debug
+helm template my-release ./chart
+helm lint ./chart --strict
+helm install my-release ./chart --wait --timeout 10m
+```
 
 ## Repository Management
 
@@ -92,15 +140,6 @@ Quick reference for essential Helm commands.
 | `helm uninstall <release> --keep-history` | Keep history |
 | `helm uninstall <release> --wait` | Wait for deletion |
 
-## Create & Package
-
-| Command | Description |
-|---------|-------------|
-| `helm create <name>` | Create new chart |
-| `helm package <chart>` | Package chart into .tgz |
-| `helm package <chart> --version 1.0.0` | Package with specific version |
-| `helm package <chart> -d ./output` | Package to specific directory |
-
 ## Dependencies
 
 | Command | Description |
@@ -120,14 +159,6 @@ Quick reference for essential Helm commands.
 | `helm lint <chart> --strict` | Strict linting |
 | `helm lint <chart> -f values.yaml` | Lint with values |
 
-## Test
-
-| Command | Description |
-|---------|-------------|
-| `helm test <release>` | Run tests |
-| `helm test <release> --logs` | Show test logs |
-| `helm test <release> --timeout 5m` | Set timeout |
-
 ## Pull Charts
 
 | Command | Description |
@@ -136,93 +167,6 @@ Quick reference for essential Helm commands.
 | `helm pull <chart> --untar` | Pull and extract |
 | `helm pull <chart> --version 1.0.0` | Pull specific version |
 | `helm pull <chart> -d ./charts` | Pull to directory |
-
-## Registry (OCI)
-
-| Command | Description |
-|---------|-------------|
-| `helm registry login <registry> -u <user>` | Login to OCI registry |
-| `helm registry logout <registry>` | Logout from registry |
-| `helm push <chart>.tgz oci://<registry>/charts` | Push chart to OCI registry |
-| `helm pull oci://<registry>/charts/<chart> --version 1.0.0` | Pull from OCI registry |
-
-## Common Flags
-
-| Flag | Description |
-|------|-------------|
-| `-n, --namespace` | Kubernetes namespace |
-| `--create-namespace` | Create namespace if not exists |
-| `-f, --values` | Specify values file |
-| `--set` | Set values on command line |
-| `--dry-run` | Simulate operation |
-| `--debug` | Enable verbose output |
-| `--wait` | Wait for resources to be ready |
-| `--timeout` | Time to wait (default 5m) |
-| `--atomic` | Rollback on failure |
-| `-A, --all-namespaces` | List across all namespaces |
-| `-o, --output` | Output format (table, json, yaml) |
-
-## Common Workflows
-
-### Install with Custom Values
-
-```bash
-helm repo add bitnami https://charts.bitnami.com/bitnami
-helm search repo wordpress
-helm show values bitnami/wordpress > values.yaml
-# Edit values.yaml
-helm install my-wordpress bitnami/wordpress -f values.yaml -n prod --create-namespace
-```
-
-### Upgrade Release
-
-```bash
-helm get values my-release > current-values.yaml
-# Edit current-values.yaml
-helm upgrade my-release bitnami/nginx -f current-values.yaml
-helm history my-release
-```
-
-### Rollback Release
-
-```bash
-helm history my-release
-helm rollback my-release 3
-helm status my-release
-```
-
-### Create and Package Chart
-
-```bash
-helm create my-chart
-helm lint my-chart
-helm template test my-chart
-helm package my-chart
-helm install my-release ./my-chart-0.1.0.tgz
-```
-
-### Debug Installation
-
-```bash
-helm install my-release ./chart --dry-run --debug
-helm template my-release ./chart
-helm lint ./chart --strict
-helm install my-release ./chart --wait --timeout 10m
-```
-
-## Useful Aliases
-
-```bash
-alias h='helm'
-alias hl='helm list'
-alias hla='helm list -A'
-alias hi='helm install'
-alias hu='helm upgrade'
-alias hr='helm rollback'
-alias hd='helm uninstall'
-alias hs='helm status'
-alias hg='helm get'
-```
 
 ## Tags
 
