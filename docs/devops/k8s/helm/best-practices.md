@@ -2,6 +2,116 @@
 
 Essential best practices for creating and managing production-ready Helm charts.
 
+## Quick Start Checklist
+
+Use this checklist for every new Helm chart to ensure you're following best practices:
+
+| # | Best Practice | Reference / Commands |
+|:-:|--------------|---------------------|
+| ⬜ | **Follow semantic versioning** for chart and app versions | Update Chart.yaml - [Follow Semantic Versioning](#1-follow-semantic-versioning) |
+| ⬜ | **Use meaningful chart names** (not generic names) | [Use Meaningful Chart Names](#2-use-meaningful-chart-names) |
+| ⬜ | **Provide complete metadata** in Chart.yaml | [Provide Complete Metadata](#3-provide-complete-metadata) |
+| ⬜ | **Set sensible defaults** in values.yaml | [Provide Sensible Defaults](#1-provide-sensible-defaults) |
+| ⬜ | **Document all values** with comments and descriptions | [Document All Values](#2-document-all-values) |
+| ⬜ | **Use nested values** for better organization | [Use Nested Values for Organization](#3-use-nested-values-for-organization) |
+| ⬜ | **Make features optional** with enable flags | [Make Features Optional](#4-make-features-optional) |
+| ⬜ | **Create named templates** for reusable code | `templates/_helpers.tpl` - [Use Named Templates](#1-use-named-templates) |
+| ⬜ | **Use standard Kubernetes labels** | [Use Standard Labels](#2-use-standard-labels) |
+| ⬜ | **Validate required values** with fail or required functions | [Validate Required Values](#3-validate-required-values) |
+| ⬜ | **Use conditional resources** for optional features | [Use Conditional Resources](#4-use-conditional-resources) |
+| ⬜ | **Control whitespace** in templates properly | Use `{{-` and `-}}` - [Control Whitespace](#5-control-whitespace) |
+| ⬜ | **Set resource requests/limits** for all containers | [Always Set Resource Requests/Limits](#1-always-set-resource-requestslimits) |
+| ⬜ | **Configure liveness and readiness probes** | [Configure Liveness and Readiness Probes](#2-configure-liveness-and-readiness-probes) |
+| ⬜ | **Use Pod Disruption Budgets** for HA deployments | [Use Pod Disruption Budgets](#3-use-pod-disruption-budgets) |
+| ⬜ | **Configure pod security context** | [Configure Pod Security](#4-configure-pod-security) |
+| ⬜ | **Pin dependency versions** to specific versions | Chart.yaml dependencies - [Pin Dependency Versions](#1-pin-dependency-versions) |
+| ⬜ | **Make dependencies optional** with conditions | [Make Dependencies Optional](#2-make-dependencies-optional) |
+| ⬜ | **Create test files** for basic functionality | `templates/tests/` - [Create Test Files](#1-create-test-files) |
+| ⬜ | **Use hooks** for lifecycle management | [Use Hooks for Lifecycle Management](#2-use-hooks-for-lifecycle-management) |
+| ⬜ | **Lint chart before packaging** | `helm lint ./mychart --strict` - [Lint Before Packaging](#3-lint-before-packaging) |
+| ⬜ | **Never store secrets in values** | Use existingSecret - [Don't Store Secrets in Values](#1-dont-store-secrets-in-values) |
+| ⬜ | **Use image pull secrets** for private registries | [Use Image Pull Secrets](#2-use-image-pull-secrets) |
+| ⬜ | **Configure RBAC** with service accounts | [Configure RBAC](#3-configure-rbac) |
+| ⬜ | **Create comprehensive README** with installation instructions | [Create Comprehensive README](#1-create-comprehensive-readme) |
+| ⬜ | **Provide NOTES.txt** with post-install instructions | `templates/NOTES.txt` - [Provide NOTES.txt](#2-provide-notestxt) |
+| ⬜ | **Use .helmignore** to exclude unnecessary files | [Use .helmignore](#1-use-helmignore) |
+| ⬜ | **Maintain CHANGELOG** for version history | [Maintain CHANGELOG](#2-maintain-changelog) |
+
+> **Note:** Copy this checklist to your project README and manually check off items (⬜ → ✅) as you complete them.
+
+### Verification Commands
+
+Run these commands to verify and test your Helm chart:
+
+```bash
+# Lint the chart
+helm lint ./mychart
+helm lint ./mychart --strict
+
+# Validate with custom values
+helm lint ./mychart -f custom-values.yaml
+
+# Dry-run installation
+helm install myrelease ./mychart --dry-run --debug
+
+# Template and check output
+helm template myrelease ./mychart
+
+# Template with custom values
+helm template myrelease ./mychart -f custom-values.yaml
+
+# Package the chart
+helm package ./mychart
+
+# Install and test
+helm install myrelease ./mychart --wait --timeout 5m
+helm test myrelease
+
+# Check installed resources
+helm get manifest myrelease
+helm get values myrelease
+
+# Validate dependencies
+helm dependency list ./mychart
+helm dependency update ./mychart
+
+# Check for security issues (with kubesec)
+helm template myrelease ./mychart | kubesec scan -
+
+# Verify all required values are documented
+grep -r "@param" ./mychart/values.yaml
+
+# Check for hardcoded values in templates
+grep -r "namespace:" ./mychart/templates/ | grep -v ".Release.Namespace"
+
+# Generate documentation (with helm-docs)
+helm-docs ./mychart
+```
+
+### Chart Quality Checklist
+
+```bash
+# Verify chart follows best practices
+helm lint ./mychart --strict
+
+# Check for common mistakes
+# 1. Hardcoded namespaces
+grep -r "namespace:" ./mychart/templates/ | grep -v "\.Release\.Namespace"
+
+# 2. Missing resource limits
+helm template myrelease ./mychart | grep -A 10 "kind: Deployment" | grep -c "resources:"
+
+# 3. No probes configured
+helm template myrelease ./mychart | grep -c "livenessProbe:"
+helm template myrelease ./mychart | grep -c "readinessProbe:"
+
+# 4. Secrets in values
+grep -i "password\|secret\|token" ./mychart/values.yaml
+
+# 5. No service account
+helm template myrelease ./mychart | grep -c "serviceAccountName:"
+```
+
 ## Chart Design
 
 ### 1. Follow Semantic Versioning

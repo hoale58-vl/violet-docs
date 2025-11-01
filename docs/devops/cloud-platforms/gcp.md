@@ -1,486 +1,451 @@
 # GCP (Google Cloud Platform)
 
-Best practices and essential services for building on Google Cloud Platform.
+Best practices, architecture patterns, and essential services for building on Google Cloud Platform.
 
 ## Overview
 
 Google Cloud Platform is a suite of cloud computing services that runs on the same infrastructure that Google uses internally for products like Google Search, Gmail, and YouTube.
 
-## Core Services
-
-### Compute
-
-#### Compute Engine (Virtual Machines)
-```bash
-# Create instance
-gcloud compute instances create my-instance \
-  --zone=us-central1-a \
-  --machine-type=e2-medium \
-  --image-family=debian-11 \
-  --image-project=debian-cloud
-
-# List instances
-gcloud compute instances list
-
-# SSH into instance
-gcloud compute ssh my-instance --zone=us-central1-a
-
-# Stop instance
-gcloud compute instances stop my-instance --zone=us-central1-a
-
-# Delete instance
-gcloud compute instances delete my-instance --zone=us-central1-a
-```
-
-#### Cloud Functions (Serverless)
-```bash
-# Deploy function
-gcloud functions deploy my-function \
-  --runtime nodejs18 \
-  --trigger-http \
-  --allow-unauthenticated \
-  --entry-point handler
-
-# Invoke function
-gcloud functions call my-function \
-  --data '{"name":"World"}'
-
-# View logs
-gcloud functions logs read my-function
-```
-
-#### Cloud Run (Containers)
-```bash
-# Deploy container
-gcloud run deploy my-service \
-  --image gcr.io/my-project/my-image:latest \
-  --platform managed \
-  --region us-central1 \
-  --allow-unauthenticated
-
-# Update service
-gcloud run services update my-service \
-  --region us-central1 \
-  --set-env-vars "ENV=production"
-
-# Delete service
-gcloud run services delete my-service --region us-central1
-```
-
-### Storage
-
-#### Cloud Storage (Object Storage)
-```bash
-# Create bucket
-gsutil mb gs://my-bucket
-
-# Upload file
-gsutil cp file.txt gs://my-bucket/
-
-# Download file
-gsutil cp gs://my-bucket/file.txt .
-
-# Sync directory
-gsutil rsync -r ./local-folder gs://my-bucket/
-
-# List objects
-gsutil ls gs://my-bucket/
-
-# Delete object
-gsutil rm gs://my-bucket/file.txt
-
-# Make public
-gsutil iam ch allUsers:objectViewer gs://my-bucket
-
-# Set lifecycle policy
-gsutil lifecycle set lifecycle.json gs://my-bucket
-```
-
-**Lifecycle Policy (lifecycle.json):**
-```json
-{
-  "lifecycle": {
-    "rule": [
-      {
-        "action": {"type": "SetStorageClass", "storageClass": "NEARLINE"},
-        "condition": {"age": 30}
-      },
-      {
-        "action": {"type": "SetStorageClass", "storageClass": "COLDLINE"},
-        "condition": {"age": 90}
-      },
-      {
-        "action": {"type": "Delete"},
-        "condition": {"age": 365}
-      }
-    ]
-  }
-}
-```
-
-#### Persistent Disks
-```bash
-# Create disk
-gcloud compute disks create my-disk \
-  --size 100GB \
-  --type pd-ssd \
-  --zone us-central1-a
-
-# Attach disk to instance
-gcloud compute instances attach-disk my-instance \
-  --disk my-disk \
-  --zone us-central1-a
-```
-
-### Databases
-
-#### Cloud SQL
-```bash
-# Create PostgreSQL instance
-gcloud sql instances create my-postgres \
-  --database-version POSTGRES_14 \
-  --tier db-f1-micro \
-  --region us-central1
-
-# Create database
-gcloud sql databases create mydb --instance my-postgres
-
-# Create user
-gcloud sql users create myuser \
-  --instance my-postgres \
-  --password mypassword
-
-# Connect to instance
-gcloud sql connect my-postgres --user=myuser
-```
-
-#### Firestore (NoSQL)
-```bash
-# Create Firestore database (via console or API)
-
-# Using gcloud
-gcloud firestore databases create --location=us-central
-```
-
-**Firestore SDK Example (Node.js):**
-```javascript
-const admin = require('firebase-admin');
-admin.initializeApp();
-const db = admin.firestore();
-
-// Add document
-await db.collection('users').doc('user123').set({
-  name: 'John Doe',
-  email: 'john@example.com'
-});
-
-// Get document
-const doc = await db.collection('users').doc('user123').get();
-console.log(doc.data());
-```
-
-#### BigQuery (Data Warehouse)
-```bash
-# Create dataset
-bq mk my_dataset
-
-# Load data
-bq load \
-  --source_format=CSV \
-  my_dataset.my_table \
-  gs://my-bucket/data.csv \
-  schema.json
-
-# Query data
-bq query --use_legacy_sql=false \
-  'SELECT * FROM my_dataset.my_table LIMIT 10'
-```
-
-### Networking
-
-#### VPC (Virtual Private Cloud)
-```bash
-# Create VPC
-gcloud compute networks create my-vpc \
-  --subnet-mode custom
-
-# Create subnet
-gcloud compute networks subnets create my-subnet \
-  --network my-vpc \
-  --region us-central1 \
-  --range 10.0.0.0/24
-
-# Create firewall rule
-gcloud compute firewall-rules create allow-http \
-  --network my-vpc \
-  --allow tcp:80,tcp:443 \
-  --source-ranges 0.0.0.0/0
-```
-
-#### Load Balancing
-```bash
-# Create backend service
-gcloud compute backend-services create my-backend \
-  --protocol HTTP \
-  --global
-
-# Create URL map
-gcloud compute url-maps create my-url-map \
-  --default-service my-backend
-
-# Create HTTP proxy
-gcloud compute target-http-proxies create my-http-proxy \
-  --url-map my-url-map
-
-# Create forwarding rule
-gcloud compute forwarding-rules create my-http-rule \
-  --global \
-  --target-http-proxy my-http-proxy \
-  --ports 80
-```
-
-## IAM (Identity and Access Management)
-
-### Service Accounts
-
-```bash
-# Create service account
-gcloud iam service-accounts create my-sa \
-  --display-name "My Service Account"
-
-# Grant role
-gcloud projects add-iam-policy-binding my-project \
-  --member serviceAccount:my-sa@my-project.iam.gserviceaccount.com \
-  --role roles/storage.objectViewer
-
-# Create key
-gcloud iam service-accounts keys create key.json \
-  --iam-account my-sa@my-project.iam.gserviceaccount.com
-
-# Impersonate service account
-gcloud auth activate-service-account --key-file key.json
-```
-
-### Custom Roles
-
-```yaml
-title: "Custom Role"
-description: "Custom role with specific permissions"
-stage: "GA"
-includedPermissions:
-- storage.buckets.get
-- storage.objects.get
-- storage.objects.list
-```
-
-```bash
-# Create custom role
-gcloud iam roles create customRole \
-  --project my-project \
-  --file role-definition.yaml
-```
-
-## Deployment Manager (Infrastructure as Code)
-
-**Template (vm-template.yaml):**
-```yaml
-resources:
-- name: my-vm
-  type: compute.v1.instance
-  properties:
-    zone: us-central1-a
-    machineType: zones/us-central1-a/machineTypes/e2-medium
-    disks:
-    - deviceName: boot
-      boot: true
-      autoDelete: true
-      initializeParams:
-        sourceImage: projects/debian-cloud/global/images/family/debian-11
-    networkInterfaces:
-    - network: global/networks/default
-      accessConfigs:
-      - name: External NAT
-        type: ONE_TO_ONE_NAT
-```
-
-```bash
-# Create deployment
-gcloud deployment-manager deployments create my-deployment \
-  --config vm-template.yaml
-
-# Update deployment
-gcloud deployment-manager deployments update my-deployment \
-  --config vm-template.yaml
-
-# Delete deployment
-gcloud deployment-manager deployments delete my-deployment
-```
-
-## Cloud Monitoring (formerly Stackdriver)
-
-```bash
-# View metrics
-gcloud monitoring time-series list \
-  --filter metric.type="compute.googleapis.com/instance/cpu/utilization"
-
-# Create alert policy (via console or API)
-
-# View logs
-gcloud logging read "resource.type=gce_instance" --limit 50
-
-# Create log sink
-gcloud logging sinks create my-sink \
-  storage.googleapis.com/my-logs-bucket \
-  --log-filter='resource.type="gce_instance"'
-```
-
-## gcloud CLI Configuration
-
-```bash
-# Initialize gcloud
-gcloud init
-
-# Login
-gcloud auth login
-
-# Set project
-gcloud config set project my-project
-
-# Set region
-gcloud config set compute/region us-central1
-
-# Set zone
-gcloud config set compute/zone us-central1-a
-
-# List configurations
-gcloud config list
-
-# Create configuration
-gcloud config configurations create dev
-gcloud config configurations activate dev
-
-# Use service account
-gcloud auth activate-service-account --key-file=key.json
-```
-
 ## Best Practices
 
 ### Security
-1. **Use Service Accounts** for applications
-2. **Enable Cloud Armor** for DDoS protection
-3. **Use VPC Service Controls** for data exfiltration protection
-4. **Enable audit logging** with Cloud Logging
-5. **Use Secret Manager** for credentials
-6. **Implement least privilege** with IAM
-7. **Enable Binary Authorization** for GKE
+
+**1. Identity and Access Management**
+
+- Use **Service Accounts** for applications, not user credentials
+- Implement **Workload Identity** for GKE to avoid service account keys
+- Follow **least privilege principle** with granular IAM roles
+- Enable **Organization Policy Service** for centralized governance
+- Use **Google Groups** for team-based access management
+- Enable **Access Transparency** for audit visibility
+- Implement **VPC Service Controls** to prevent data exfiltration
+
+**2. Data Protection**
+
+- Encrypt data **at rest** using:
+  - Cloud Storage: Customer-managed encryption keys (CMEK)
+  - Compute Engine: Encrypted persistent disks
+  - Cloud SQL: Automatic encryption
+- Encrypt data **in transit** using TLS/SSL
+- Use **Cloud KMS** for encryption key management
+- Enable **Cloud Storage versioning** for important data
+- Implement **uniform bucket-level access** for Cloud Storage
+- Use **Secret Manager** for managing credentials and API keys
+- Enable **Cloud Data Loss Prevention (DLP)** for sensitive data discovery
+
+**3. Network Security**
+
+- Use **VPC firewall rules** for network-level security
+- Implement **Cloud Armor** for DDoS protection and WAF
+- Enable **VPC Flow Logs** for network traffic monitoring
+- Use **Private Google Access** for private connectivity
+- Implement **Cloud NAT** for secure outbound traffic
+- Use **Shared VPC** for centralized network management
+- Enable **Binary Authorization** for container image verification
+
+**4. Monitoring and Compliance**
+
+- Enable **Cloud Audit Logs** for all services
+- Use **Security Command Center** for threat detection and compliance
+- Implement **Cloud Monitoring** for real-time alerting
+- Set up **Cloud Logging** sinks for long-term retention
+- Use **Access Approval** for additional control over Google support access
+- Regular security assessments using **Security Health Analytics**
+- Conduct **vulnerability scanning** with Container Analysis
 
 ### Cost Optimization
-1. **Use Committed Use Discounts** for predictable workloads
-2. **Enable autoscaling** where possible
-3. **Use Preemptible VMs** for fault-tolerant workloads
-4. **Set up budget alerts** in Billing
-5. **Use Cloud Storage lifecycle policies**
-6. **Right-size instances** with Recommender
-7. **Clean up unused resources** regularly
+
+**1. Compute Cost Optimization**
+
+- Use **Committed Use Discounts** (CUD) for predictable workloads (up to 57% savings)
+- Leverage **Sustained Use Discounts** (automatic savings for consistent usage)
+- Use **Preemptible VMs** for fault-tolerant workloads (up to 80% savings)
+- Implement **Spot VMs** for batch processing and fault-tolerant workloads
+- Right-size instances using **Active Assist Recommender**
+- Use **autoscaling** for Compute Engine and GKE
+- Consider **E2 instances** for general-purpose workloads (better price-performance)
+
+**2. Storage Cost Optimization**
+
+- Implement **Cloud Storage lifecycle policies** for automatic tiering
+- Use **Nearline/Coldline/Archive** storage classes for infrequent access
+- Enable **Cloud Storage Object Lifecycle Management**
+- Delete **orphaned persistent disks** and snapshots
+- Use **Balanced or Standard persistent disks** instead of SSD when appropriate
+- Compress data before storage
+- Use **Regional storage** instead of multi-regional when possible
+
+**3. Monitoring and Governance**
+
+- Set up **Budget alerts** with Cloud Billing
+- Use **Cloud Billing Reports** for cost analysis and forecasting
+- Implement **labels and tags** for cost allocation tracking
+- Enable **Cost Breakdown** by project, service, and SKU
+- Use **Recommender** for cost optimization suggestions
+- Review **Committed Use Discount** recommendations
+- Delete unused **static IP addresses** and **load balancers**
+
+**4. Data Transfer Optimization**
+
+- Minimize cross-region data transfer costs
+- Use **Cloud CDN** to reduce egress costs
+- Implement **Private Google Access** to avoid egress charges
+- Use **Transfer Appliance** for large data migrations
+- Leverage **Cloud Interconnect** for hybrid cloud scenarios
 
 ### High Availability
-1. **Multi-regional deployments** for critical services
-2. **Use Managed Instance Groups** with autoscaling
-3. **Configure Cloud SQL with HA**
-4. **Use Cloud Load Balancing** for distribution
-5. **Implement health checks**
-6. **Regular backups** and disaster recovery testing
+
+**1. Multi-Regional Architecture**
+
+- Deploy critical workloads across **multiple regions**
+- Use **Cloud SQL with High Availability** (regional HA configuration)
+- Configure **Memorystore for Redis** with HA
+- Distribute **Cloud Load Balancing** across multiple regions
+- Use **Managed Instance Groups** (MIGs) spanning multiple zones
+- Implement **multi-region Cloud Storage** for critical data
+
+**2. Fault Tolerance and Resilience**
+
+- Implement **health checks** for instance groups and load balancers
+- Use **Global Load Balancing** for automatic failover
+- Configure **Cloud SQL automated backups** and point-in-time recovery
+- Enable **Firestore export** for disaster recovery
+- Implement **Cloud Storage dual-region** for data redundancy
+- Use **Cloud DNS** with health checking and failover
+
+**3. Disaster Recovery**
+
+- Define **RTO** (Recovery Time Objective) and **RPO** (Recovery Point Objective)
+- Implement appropriate DR strategy:
+  - **Backup and Restore**: Lowest cost, slower recovery
+  - **Warm Standby**: Reduced capacity in secondary region
+  - **Hot Standby**: Full capacity in multiple regions
+  - **Multi-Region Active-Active**: Highest availability, highest cost
+- Regular **disaster recovery drills**
+- Use **Cloud Storage Transfer Service** for cross-region replication
+- Implement **snapshot scheduling** for persistent disks
+
+**4. Monitoring and Alerting**
+
+- Set up **Cloud Monitoring dashboards** for key metrics
+- Configure **alerting policies** for critical thresholds
+- Use **Cloud Trace** for distributed tracing
+- Implement **uptime checks** for critical endpoints
+- Monitor **Error Reporting** for application errors
+- Use **Cloud Profiler** for performance optimization
 
 ## Architecture Patterns
 
-#### Serverless Web Application
-```
-Cloud CDN → Cloud Load Balancer → Cloud Run → Firestore
-                                            → Cloud Storage
-```
+### 1. Three-Tier Web Application
 
-#### Microservices on GKE
-```
-Cloud Load Balancer → GKE Services → Cloud SQL
-                                   → Memorystore (Redis)
-```
+```mermaid
+graph TB
+    subgraph "Presentation Tier"
+        CDN[Cloud CDN]
+        LB[Global Load Balancer]
+        Storage[Cloud Storage<br/>Static Assets]
+    end
 
-#### Data Pipeline
-```
-Pub/Sub → Dataflow → BigQuery
-                   → Cloud Storage
-```
+    subgraph "Application Tier"
+        MIG[Managed Instance Group<br/>Auto-scaling]
+        CloudRun[Cloud Run Services]
+    end
 
-## Common GCP Services Quick Reference
+    subgraph "Data Tier"
+        CloudSQL[(Cloud SQL HA<br/>PostgreSQL)]
+        Memorystore[(Memorystore<br/>Redis)]
+        Firestore[(Firestore)]
+    end
 
-| Service | Purpose |
-|---------|---------|
-| Compute Engine | Virtual machines |
-| Cloud Run | Serverless containers |
-| Cloud Functions | Serverless functions |
-| Cloud Storage | Object storage |
-| Cloud SQL | Managed relational databases |
-| Firestore | NoSQL document database |
-| GKE | Kubernetes clusters |
-| VPC | Network isolation |
-| Cloud Load Balancing | Load distribution |
-| Cloud CDN | Content delivery |
-| Cloud Pub/Sub | Messaging |
-| BigQuery | Data warehouse |
-| Cloud Monitoring | Monitoring and alerting |
-| Cloud Logging | Log management |
-| IAM | Identity and access |
+    Users --> CDN
+    CDN --> LB
+    CDN --> Storage
+    LB --> MIG
+    LB --> CloudRun
 
-## Useful Commands
+    MIG --> CloudSQL
+    MIG --> Memorystore
+    CloudRun --> Firestore
 
-```bash
-# Get project info
-gcloud projects describe my-project
-
-# List all regions
-gcloud compute regions list
-
-# List all zones
-gcloud compute zones list
-
-# Get billing info
-gcloud billing accounts list
-
-# List all services
-gcloud services list
-
-# Enable service
-gcloud services enable container.googleapis.com
-
-# View quotas
-gcloud compute project-info describe --project my-project
-
-# Cost estimation
-# Use Cloud Pricing Calculator: cloud.google.com/products/calculator
+    style CDN fill:#4285F4
+    style LB fill:#34A853
+    style CloudSQL fill:#FBBC04
+    style Memorystore fill:#EA4335
 ```
 
-## Cloud SDK Components
+### 2. Serverless Application
 
-```bash
-# List components
-gcloud components list
+```mermaid
+graph LR
+    subgraph "Frontend"
+        CDN[Cloud CDN]
+        Storage[Cloud Storage<br/>Static Website]
+    end
 
-# Install component
-gcloud components install kubectl
+    subgraph "API Layer"
+        APIGW[API Gateway]
+        CloudRun[Cloud Run]
+        Functions[Cloud Functions]
+    end
 
-# Update components
-gcloud components update
+    subgraph "Data Layer"
+        Firestore[(Firestore)]
+        GCS[Cloud Storage<br/>Data Lake]
+    end
 
-# Common components:
-# - kubectl: Kubernetes CLI
-# - gsutil: Cloud Storage CLI
-# - bq: BigQuery CLI
+    Users --> CDN
+    CDN --> Storage
+    Users --> APIGW
+    APIGW --> CloudRun
+    APIGW --> Functions
+
+    CloudRun --> Firestore
+    Functions --> GCS
+
+    style CDN fill:#4285F4
+    style APIGW fill:#34A853
+    style CloudRun fill:#4285F4
+    style Firestore fill:#FBBC04
 ```
+
+### 3. Microservices on GKE
+
+```mermaid
+graph TB
+    subgraph "Load Balancing"
+        GLB[Global Load Balancer]
+    end
+
+    subgraph "Container Orchestration"
+        GKE[GKE Autopilot Cluster]
+        Service1[User Service]
+        Service2[Order Service]
+        Service3[Payment Service]
+    end
+
+    subgraph "Data Stores"
+        CloudSQL[(Cloud SQL)]
+        Firestore[(Firestore)]
+        Redis[(Memorystore)]
+    end
+
+    subgraph "Messaging"
+        PubSub[Cloud Pub/Sub]
+    end
+
+    Users --> GLB
+    GLB --> GKE
+    GKE --> Service1
+    GKE --> Service2
+    GKE --> Service3
+
+    Service1 --> CloudSQL
+    Service2 --> Firestore
+    Service3 --> Redis
+
+    Service2 --> PubSub
+    Service3 --> PubSub
+
+    style GLB fill:#34A853
+    style GKE fill:#4285F4
+    style CloudSQL fill:#FBBC04
+    style Firestore fill:#FBBC04
+```
+
+### 4. Event-Driven Architecture
+
+```mermaid
+graph LR
+    subgraph "Event Sources"
+        StorageEvents[Storage Events]
+        PubSubEvents[Pub/Sub Topics]
+        SchedulerEvents[Cloud Scheduler]
+    end
+
+    subgraph "Processing"
+        Func1[Cloud Functions:<br/>Transform]
+        Func2[Cloud Functions:<br/>Process]
+        Dataflow[Dataflow Pipeline]
+    end
+
+    subgraph "Analytics"
+        BigQuery[(BigQuery)]
+        Storage[Cloud Storage<br/>Data Lake]
+    end
+
+    StorageEvents --> Func1
+    PubSubEvents --> Func1
+    SchedulerEvents --> Func2
+
+    Func1 --> PubSubEvents
+    Func2 --> Dataflow
+    Dataflow --> BigQuery
+    Dataflow --> Storage
+
+    style Func1 fill:#4285F4
+    style Func2 fill:#4285F4
+    style Dataflow fill:#34A853
+    style BigQuery fill:#FBBC04
+```
+
+### 5. Multi-Region Active-Active
+
+```mermaid
+graph TB
+    subgraph "Global"
+        DNS[Cloud DNS<br/>Global DNS]
+        CDN[Cloud CDN]
+        GLB[Global Load Balancer]
+    end
+
+    subgraph "Region 1: us-central1"
+        MIG1[MIG]
+        SQL1[(Cloud SQL Primary)]
+    end
+
+    subgraph "Region 2: europe-west1"
+        MIG2[MIG]
+        SQL2[(Cloud SQL Read Replica)]
+    end
+
+    Users --> DNS
+    DNS --> CDN
+    CDN --> GLB
+
+    GLB --> MIG1
+    GLB --> MIG2
+
+    MIG1 --> SQL1
+    MIG2 --> SQL2
+
+    SQL1 -.Cross-Region<br/>Replication.-> SQL2
+
+    style DNS fill:#34A853
+    style CDN fill:#4285F4
+    style GLB fill:#34A853
+    style SQL1 fill:#FBBC04
+    style SQL2 fill:#FBBC04
+```
+
+## Top GCP Services
+
+### Compute
+
+| Service | Description | Use Case | Pricing Model |
+|---------|-------------|----------|---------------|
+| **Compute Engine** | Virtual machines | General-purpose computing, custom workloads | Per second billing |
+| **Cloud Run** | Serverless containers | Containerized apps without infrastructure | Per request + CPU/memory |
+| **Cloud Functions** | Serverless functions | Event-driven, microservices | Per invocation + compute time |
+| **GKE** | Managed Kubernetes | Container orchestration | Cluster management + nodes |
+| **GKE Autopilot** | Fully managed Kubernetes | Simplified K8s management | Per pod resources |
+| **App Engine** | Platform as a Service | Web apps, mobile backends | Per instance hour |
+| **Bare Metal** | Dedicated servers | High-performance, specialized workloads | Per server |
+
+### Storage
+
+| Service | Description | Use Case | Pricing Model |
+|---------|-------------|----------|---------------|
+| **Cloud Storage** | Object storage | Static assets, data lakes, backups | Per GB stored + operations |
+| **Persistent Disk** | Block storage | VM storage, databases | Per GB provisioned |
+| **Filestore** | Managed NFS | Shared file storage | Per GB provisioned |
+| **Local SSD** | High-performance local storage | Low-latency workloads | Per GB per hour |
+| **Cloud Storage for Firebase** | Mobile/web object storage | User-generated content | Per GB + operations |
+
+### Database
+
+| Service | Description | Use Case | Pricing Model |
+|---------|-------------|----------|---------------|
+| **Cloud SQL** | Managed relational DB | PostgreSQL, MySQL, SQL Server | vCPU hours + storage |
+| **Cloud Spanner** | Globally distributed DB | Mission-critical, scalable apps | Node hours + storage |
+| **Firestore** | NoSQL document database | Mobile, web, real-time apps | Per read/write/delete |
+| **Bigtable** | Wide-column NoSQL | Time-series, IoT, analytics | Node hours + storage |
+| **Memorystore** | In-memory data store | Redis/Memcached caching | Per GB per hour |
+| **AlloyDB** | PostgreSQL-compatible DB | Enterprise PostgreSQL workloads | vCPU hours + storage |
+| **BigQuery** | Serverless data warehouse | Analytics, BI, ML | Per TB scanned + storage |
+
+### Networking & Content Delivery
+
+| Service | Description | Use Case | Pricing Model |
+|---------|-------------|----------|---------------|
+| **VPC** | Virtual private cloud | Network isolation | No charge (resources charged) |
+| **Cloud Load Balancing** | Global load distribution | Traffic distribution | Per rule + data processed |
+| **Cloud CDN** | Content delivery network | Global content delivery | Per GB cache egress |
+| **Cloud DNS** | Managed DNS service | Domain management | Per zone + queries |
+| **Cloud NAT** | Network address translation | Outbound internet access | Per NAT gateway hour + data |
+| **Cloud Interconnect** | Dedicated connectivity | Hybrid cloud, high throughput | Per connection + data |
+| **Cloud VPN** | Encrypted VPN tunnels | Secure hybrid connectivity | Per tunnel hour + data |
+
+### Security & Identity
+
+| Service | Description | Use Case | Pricing Model |
+|---------|-------------|----------|---------------|
+| **IAM** | Identity and access | User/service account management | Free |
+| **Cloud KMS** | Key management | Encryption key management | Per key version + operations |
+| **Secret Manager** | Secrets storage | API keys, passwords, certificates | Per secret + operations |
+| **Cloud Armor** | DDoS and WAF protection | Application security | Per policy + requests |
+| **Security Command Center** | Security posture management | Threat detection, compliance | Per asset |
+| **VPC Service Controls** | Data exfiltration protection | Perimeter security | No additional charge |
+| **Binary Authorization** | Container image verification | Secure deployments | Free |
+
+### Monitoring & Management
+
+| Service | Description | Use Case | Pricing Model |
+|---------|-------------|----------|---------------|
+| **Cloud Monitoring** | Infrastructure monitoring | Metrics, dashboards, alerts | Per GB ingested |
+| **Cloud Logging** | Log management | Centralized logging | Per GB ingested |
+| **Cloud Trace** | Distributed tracing | Performance analysis | Per span ingested |
+| **Cloud Profiler** | Continuous profiling | Performance optimization | Free |
+| **Error Reporting** | Error tracking | Application error monitoring | Free |
+| **Cloud Debugger** | Live debugging | Production debugging | Free |
+
+### Analytics & Big Data
+
+| Service | Description | Use Case | Pricing Model |
+|---------|-------------|----------|---------------|
+| **BigQuery** | Serverless data warehouse | SQL analytics, BI | Per TB scanned + storage |
+| **Dataflow** | Stream/batch processing | ETL, data pipelines | Per vCPU hour |
+| **Dataproc** | Managed Hadoop/Spark | Big data processing | Per cluster hour |
+| **Pub/Sub** | Messaging service | Event ingestion, streaming | Per GB delivered |
+| **Data Fusion** | Visual ETL | Code-free data integration | Per instance hour |
+| **Looker** | Business intelligence | Data visualization, BI | Per user per month |
+| **Datastream** | Change data capture | Real-time replication | Per GB processed |
+
+### Developer Tools
+
+| Service | Description | Use Case | Pricing Model |
+|---------|-------------|----------|---------------|
+| **Cloud Source Repositories** | Git repositories | Source control | Per GB stored + GB egress |
+| **Cloud Build** | CI/CD platform | Build, test, deploy | Per build minute |
+| **Artifact Registry** | Container/package registry | Store build artifacts | Per GB stored |
+| **Cloud Deploy** | Continuous delivery | Deploy to GKE | No additional charge |
+| **Cloud Workstations** | Cloud-based development | Remote development | Per workstation hour |
+| **Cloud Code** | IDE extensions | Develop cloud apps | Free |
+
+### Machine Learning & AI
+
+| Service | Description | Use Case | Pricing Model |
+|---------|-------------|----------|---------------|
+| **Vertex AI** | Unified ML platform | Train and deploy models | Per training/prediction hour |
+| **AutoML** | Custom ML models | No-code ML | Per training hour |
+| **Vision AI** | Image analysis | Image recognition, OCR | Per image |
+| **Natural Language AI** | Text analysis | Sentiment, entity extraction | Per unit |
+| **Translation AI** | Text translation | Multi-language translation | Per character |
+| **Speech-to-Text** | Audio transcription | Voice recognition | Per 15 seconds |
+| **Text-to-Speech** | Voice synthesis | Voice generation | Per character |
+
+### Hybrid & Multi-Cloud
+
+| Service | Description | Use Case | Pricing Model |
+|---------|-------------|----------|---------------|
+| **Anthos** | Hybrid/multi-cloud platform | Unified Kubernetes management | Per vCPU hour |
+| **Google Distributed Cloud** | Edge and data center solutions | On-premises GCP services | Per deployment |
+| **Cloud Run for Anthos** | Serverless on GKE/Anthos | Portable serverless | GKE pricing |
+| **Traffic Director** | Service mesh traffic management | Microservices traffic control | No additional charge |
 
 ## Tags
 
-`gcp`, `cloud`, `devops`, `infrastructure`, `google-cloud`
+`gcp`, `cloud`, `devops`, `infrastructure`, `google-cloud`, `architecture`, `best-practices`
 
 ---
 
-*Last updated: 2025-10-30*
+*Last updated: 2025-10-31*

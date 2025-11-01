@@ -1,4 +1,4 @@
-# Terraform Templates
+# Templates
 
 Production-ready Terraform configurations for common cloud infrastructure patterns.
 

@@ -1,6 +1,68 @@
-# Terraform Best Practices
+# Best Practices
 
 Essential best practices for writing maintainable, secure, and scalable Terraform infrastructure code.
+
+## Quick Start Checklist
+
+Use this checklist for every new Terraform project to ensure you're following best practices:
+
+| # | Best Practice | Reference / Commands |
+|:-:|--------------|---------------------|
+| ⬜ | **Set up proper project structure** with environments/ and modules/ directories | See [Project Structure](#project-structure) |
+| ⬜ | **Configure remote state backend** with encryption and locking enabled | `terraform init` - [State Management](#state-management) |
+| ⬜ | **Enable state locking** using DynamoDB (AWS) or equivalent | Create lock table - [State Locking](#state-locking) |
+| ⬜ | **Separate state files** by environment (dev/staging/prod) | [State Isolation](#state-isolation) |
+| ⬜ | **Never hardcode secrets** - use variables with `sensitive = true` | [Secrets Management](#secrets-management) |
+| ⬜ | **Use AWS Secrets Manager** or equivalent for sensitive data | [Secrets Management](#secrets-management) |
+| ⬜ | **Implement resource tagging** strategy with required tags | [Resource Tagging](#resource-tagging) |
+| ⬜ | **Add lifecycle rules** with `prevent_destroy` for critical resources | [Prevent Resource Deletion](#prevent-resource-deletion) |
+| ⬜ | **Format code** before committing | `terraform fmt -recursive` |
+| ⬜ | **Validate configuration** in CI/CD pipeline | `terraform validate` |
+| ⬜ | **Set up pre-commit hooks** for formatting, validation, and linting | Install: `pre-commit install` - [Use Pre-commit Hooks](#use-pre-commit-hooks) |
+| ⬜ | **Run static analysis** with tflint and checkov | `tflint .` and `checkov -d .` |
+| ⬜ | **Use cost allocation tags** for billing and tracking | [Tag for Cost Allocation](#tag-for-cost-allocation) |
+| ⬜ | **Configure S3 lifecycle policies** for cost optimization | [Use Lifecycle Policies](#use-lifecycle-policies) |
+| ⬜ | **Implement CI/CD pipeline** with automated testing | [CI/CD Integration](#cicd-integration) |
+| ⬜ | **Pin provider versions** in versions.tf | Create versions.tf with required_version |
+| ⬜ | **Use explicit dependencies** only when necessary | Use `depends_on` sparingly |
+| ⬜ | **Document modules** with README.md and output descriptions | Each module needs README |
+| ⬜ | **Run plan before apply** and review changes carefully | `terraform plan -out=tfplan` |
+| ⬜ | **Test in non-prod** environments first | Apply to dev → staging → prod |
+
+> **Note:** Copy this checklist to your project README and manually check off items (⬜ → ✅) as you complete them.
+
+### Verification Commands
+
+Run these commands to verify your setup:
+
+```bash
+# Check Terraform version
+terraform version
+
+# Format all files
+terraform fmt -recursive -check
+
+# Validate configuration
+terraform validate
+
+# Security scanning
+checkov -d . --framework terraform
+
+# Linting
+tflint --recursive
+
+# Plan with detailed output
+terraform plan -out=tfplan
+
+# Show planned changes in JSON
+terraform show -json tfplan | jq
+
+# List all resources in state
+terraform state list
+
+# Verify backend configuration
+terraform init -backend-config=backend.hcl
+```
 
 ## Project Structure
 
@@ -108,163 +170,7 @@ terraform-state/
     └── ...
 ```
 
-## Module Design
-
-### Module Best Practices
-
-**1. Keep modules focused and reusable:**
-
-```hcl
-# modules/vpc/main.tf
-variable "name" {
-  description = "Name of the VPC"
-  type        = string
-}
-
-variable "cidr" {
-  description = "CIDR block for VPC"
-  type        = string
-  validation {
-    condition     = can(cidrhost(var.cidr, 0))
-    error_message = "Must be a valid CIDR block."
-  }
-}
-
-variable "availability_zones" {
-  description = "List of AZs"
-  type        = list(string)
-}
-
-variable "tags" {
-  description = "Tags to apply to resources"
-  type        = map(string)
-  default     = {}
-}
-
-resource "aws_vpc" "main" {
-  cidr_block           = var.cidr
-  enable_dns_hostnames = true
-  enable_dns_support   = true
-
-  tags = merge(
-    var.tags,
-    {
-      Name = var.name
-    }
-  )
-}
-```
-
-**2. Use semantic versioning for modules:**
-
-```hcl
-module "vpc" {
-  source  = "git::https://github.com/org/terraform-modules.git//vpc?ref=v1.2.0"
-
-  name               = "production-vpc"
-  cidr               = "10.0.0.0/16"
-  availability_zones = ["us-east-1a", "us-east-1b"]
-}
-```
-
-**3. Provide comprehensive outputs:**
-
-```hcl
-# modules/vpc/outputs.tf
-output "vpc_id" {
-  description = "ID of the VPC"
-  value       = aws_vpc.main.id
-}
-
-output "vpc_cidr" {
-  description = "CIDR block of the VPC"
-  value       = aws_vpc.main.cidr_block
-}
-
-output "private_subnet_ids" {
-  description = "List of private subnet IDs"
-  value       = aws_subnet.private[*].id
-}
-```
-
-## Variables and Naming
-
-### Variable Validation
-
-**Add validation rules:**
-
-```hcl
-variable "environment" {
-  description = "Environment name"
-  type        = string
-
-  validation {
-    condition     = contains(["dev", "staging", "prod"], var.environment)
-    error_message = "Environment must be dev, staging, or prod."
-  }
-}
-
-variable "instance_count" {
-  description = "Number of instances"
-  type        = number
-
-  validation {
-    condition     = var.instance_count > 0 && var.instance_count <= 10
-    error_message = "Instance count must be between 1 and 10."
-  }
-}
-
-variable "db_password" {
-  description = "Database password"
-  type        = string
-  sensitive   = true
-
-  validation {
-    condition     = length(var.db_password) >= 16
-    error_message = "Password must be at least 16 characters."
-  }
-}
-```
-
-### Naming Conventions
-
-**Use consistent naming:**
-
-```hcl
-# Good naming
-resource "aws_instance" "web_server" {
-  # ...
-}
-
-resource "aws_security_group" "web_server_sg" {
-  # ...
-}
-
-# Use locals for computed names
-locals {
-  resource_prefix = "${var.project}-${var.environment}"
-
-  common_tags = {
-    Project     = var.project
-    Environment = var.environment
-    ManagedBy   = "Terraform"
-    CreatedAt   = timestamp()
-  }
-}
-
-resource "aws_s3_bucket" "data" {
-  bucket = "${local.resource_prefix}-data-bucket"
-
-  tags = merge(
-    local.common_tags,
-    {
-      Name = "Data Bucket"
-    }
-  )
-}
-```
-
-## Security Best Practices
+## Security
 
 ### Secrets Management
 
@@ -388,188 +294,6 @@ repos:
       - id: terraform_docs
       - id: terraform_tflint
       - id: terraform_checkov
-```
-
-### Documentation
-
-**Document modules with terraform-docs:**
-
-```hcl
-# modules/vpc/main.tf
-/**
- * # VPC Module
- *
- * Creates a VPC with public and private subnets across multiple AZs.
- *
- * ## Usage
- *
- * ```hcl
- * module "vpc" {
- *   source = "./modules/vpc"
- *
- *   name               = "my-vpc"
- *   cidr               = "10.0.0.0/16"
- *   availability_zones = ["us-east-1a", "us-east-1b"]
- * }
- * ```
- */
-```
-
-## Version Management
-
-### Pin Provider Versions
-
-```hcl
-# versions.tf
-terraform {
-  required_version = ">= 1.5.0"
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.23"
-    }
-
-    helm = {
-      source  = "hashicorp/helm"
-      version = "~> 2.11"
-    }
-  }
-}
-
-provider "aws" {
-  region = var.aws_region
-
-  default_tags {
-    tags = local.common_tags
-  }
-}
-```
-
-## Data Sources
-
-### Use Data Sources for External Resources
-
-```hcl
-# Reference existing VPC
-data "aws_vpc" "existing" {
-  id = var.vpc_id
-}
-
-# Get latest AMI
-data "aws_ami" "ubuntu" {
-  most_recent = true
-  owners      = ["099720109477"] # Canonical
-
-  filter {
-    name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
-  }
-
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
-}
-
-# Get current region
-data "aws_region" "current" {}
-
-# Get current account
-data "aws_caller_identity" "current" {}
-```
-
-## Performance Optimization
-
-### Use Count and For_Each Wisely
-
-```hcl
-# Good - Using for_each for dynamic resources
-variable "subnets" {
-  type = map(object({
-    cidr_block        = string
-    availability_zone = string
-  }))
-}
-
-resource "aws_subnet" "private" {
-  for_each = var.subnets
-
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = each.value.cidr_block
-  availability_zone = each.value.availability_zone
-
-  tags = {
-    Name = "private-${each.key}"
-  }
-}
-
-# Good - Using count for simple duplication
-resource "aws_instance" "web" {
-  count = var.instance_count
-
-  ami           = data.aws_ami.ubuntu.id
-  instance_type = var.instance_type
-
-  tags = {
-    Name = "web-${count.index + 1}"
-  }
-}
-```
-
-### Minimize Plan/Apply Time
-
-```hcl
-# Use depends_on sparingly - let Terraform infer dependencies
-# Bad
-resource "aws_instance" "web" {
-  # ...
-  depends_on = [aws_security_group.web] # Usually unnecessary
-}
-
-# Good - Implicit dependency
-resource "aws_instance" "web" {
-  # ...
-  vpc_security_group_ids = [aws_security_group.web.id]
-}
-```
-
-## Testing
-
-### Use Terraform Workspaces
-
-```bash
-# Create workspace for testing
-terraform workspace new test
-
-# Switch workspaces
-terraform workspace select prod
-
-# List workspaces
-terraform workspace list
-```
-
-### Implement Policy as Code
-
-```hcl
-# Use Sentinel or OPA for policy enforcement
-# Example: Require specific tags
-policy "required-tags" {
-  enforcement_level = "hard-mandatory"
-}
-
-rule "aws_resources_have_required_tags" {
-  condition = all terraform.resources as r {
-    r.tags contains "Environment" and
-    r.tags contains "Owner" and
-    r.tags contains "CostCenter"
-  }
-}
 ```
 
 ## Cost Optimization

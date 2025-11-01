@@ -1,293 +1,139 @@
-# Docker CLI Cheat Sheet
+# Cheat Sheet
 
-Essential Docker commands for everyday development and operations.
+Quick reference for essential Docker commands.
+
+## Common Workflows
+
+### Build and Run
+
+```bash
+docker build -t myapp:latest .
+docker run -d -p 8080:80 --name myapp myapp:latest
+docker logs -f myapp
+```
+
+### Push to Registry
+
+```bash
+docker tag myapp:latest username/myapp:latest
+docker login
+docker push username/myapp:latest
+```
+
+### Clean Up Everything
+
+```bash
+docker stop $(docker ps -aq)
+docker rm $(docker ps -aq)
+docker rmi $(docker images -q)
+docker volume prune -f
+docker network prune -f
+```
+
+### Debug Container
+
+```bash
+docker run -it --entrypoint /bin/sh myapp:latest
+docker exec -it container_name /bin/bash
+docker logs --tail 100 -f container_name
+```
 
 ## Container Management
 
-### Running Containers
+| Command | Description |
+|---------|-------------|
+| `docker run <image>` | Run container from image |
+| `docker run -d <image>` | Run in background (detached) |
+| `docker run -d --name <name> <image>` | Run with custom name |
+| `docker run -d -p 8080:80 <image>` | Run with port mapping (host:container) |
+| `docker run -it <image> /bin/bash` | Run interactive with terminal |
+| `docker run -v /host:/container <image>` | Run with volume mount |
+| `docker run -e "KEY=value" <image>` | Run with environment variable |
+| `docker run --rm <image>` | Auto-remove container on exit |
+| `docker ps` | List running containers |
+| `docker ps -a` | List all containers (including stopped) |
+| `docker start <container>` | Start stopped container |
+| `docker stop <container>` | Stop running container |
+| `docker restart <container>` | Restart container |
+| `docker rm <container>` | Remove container |
+| `docker rm -f <container>` | Force remove running container |
+| `docker container prune` | Remove all stopped containers |
 
-```bash
-# Run container in foreground
-docker run nginx
+## Container Inspection
 
-# Run container in background (detached)
-docker run -d nginx
-
-# Run with name
-docker run -d --name my-nginx nginx
-
-# Run with port mapping
-docker run -d -p 8080:80 nginx
-
-# Run with environment variables
-docker run -d -e "ENV=production" -e "DEBUG=false" nginx
-
-# Run with volume mount
-docker run -d -v /host/path:/container/path nginx
-
-# Run with interactive terminal
-docker run -it ubuntu /bin/bash
-
-# Run with auto-remove on exit
-docker run --rm ubuntu echo "Hello"
-```
-
-### Managing Containers
-
-```bash
-# List running containers
-docker ps
-
-# List all containers (including stopped)
-docker ps -a
-
-# Start a stopped container
-docker start container_name
-
-# Stop a running container
-docker stop container_name
-
-# Restart a container
-docker restart container_name
-
-# Remove a container
-docker rm container_name
-
-# Remove all stopped containers
-docker container prune
-
-# Force remove a running container
-docker rm -f container_name
-```
-
-### Container Inspection
-
-```bash
-# View logs
-docker logs container_name
-
-# Follow logs
-docker logs -f container_name
-
-# View last 100 lines
-docker logs --tail 100 container_name
-
-# View container details
-docker inspect container_name
-
-# View container stats
-docker stats container_name
-
-# Execute command in running container
-docker exec -it container_name /bin/bash
-
-# Copy files from container
-docker cp container_name:/path/to/file /host/path
-
-# Copy files to container
-docker cp /host/path container_name:/path/to/file
-```
+| Command | Description |
+|---------|-------------|
+| `docker logs <container>` | View container logs |
+| `docker logs -f <container>` | Follow logs (tail -f) |
+| `docker logs --tail 100 <container>` | Show last N lines |
+| `docker exec -it <container> /bin/bash` | Execute command in running container |
+| `docker inspect <container>` | View container details (JSON) |
+| `docker stats <container>` | View resource usage stats |
+| `docker top <container>` | View running processes |
+| `docker cp <container>:/path /host/path` | Copy files from container |
+| `docker cp /host/path <container>:/path` | Copy files to container |
+| `docker port <container>` | View port mappings |
+| `docker diff <container>` | View filesystem changes |
 
 ## Image Management
 
-### Building Images
+| Command | Description |
+|---------|-------------|
+| `docker images` | List all images |
+| `docker build -t <name>:<tag> .` | Build image from Dockerfile |
+| `docker build -f Dockerfile.prod -t <name> .` | Build with specific Dockerfile |
+| `docker build --no-cache -t <name> .` | Build without cache |
+| `docker build --build-arg KEY=value -t <name> .` | Build with arguments |
+| `docker tag <image> <name>:<tag>` | Tag an image |
+| `docker rmi <image>` | Remove image |
+| `docker image prune` | Remove unused images |
+| `docker image prune -a` | Remove all unused images |
+| `docker save -o <file>.tar <image>` | Save image to tar file |
+| `docker load -i <file>.tar` | Load image from tar file |
+| `docker history <image>` | Show image layer history |
 
-```bash
-# Build from Dockerfile
-docker build -t myapp:latest .
+## Registry Operations
 
-# Build with different Dockerfile name
-docker build -t myapp:latest -f Dockerfile.prod .
-
-# Build with build arguments
-docker build --build-arg VERSION=1.0 -t myapp:latest .
-
-# Build without cache
-docker build --no-cache -t myapp:latest .
-
-# Build with target stage (multi-stage)
-docker build --target production -t myapp:prod .
-```
-
-### Managing Images
-
-```bash
-# List images
-docker images
-
-# Remove an image
-docker rmi image_name:tag
-
-# Remove all unused images
-docker image prune
-
-# Remove all images
-docker image prune -a
-
-# Tag an image
-docker tag myapp:latest myapp:v1.0
-
-# Save image to tar file
-docker save -o myapp.tar myapp:latest
-
-# Load image from tar file
-docker load -i myapp.tar
-```
-
-### Registry Operations
-
-```bash
-# Login to registry
-docker login
-
-# Pull image from registry
-docker pull nginx:latest
-
-# Push image to registry
-docker push username/myapp:latest
-
-# Search for images
-docker search nginx
-```
+| Command | Description |
+|---------|-------------|
+| `docker login` | Login to Docker Hub |
+| `docker login <registry>` | Login to private registry |
+| `docker pull <image>:<tag>` | Pull image from registry |
+| `docker push <image>:<tag>` | Push image to registry |
+| `docker search <term>` | Search for images |
+| `docker logout` | Logout from registry |
 
 ## Docker Compose
 
-```bash
-# Start services
-docker-compose up
-
-# Start in background
-docker-compose up -d
-
-# Stop services
-docker-compose down
-
-# Stop and remove volumes
-docker-compose down -v
-
-# View logs
-docker-compose logs
-
-# Follow logs
-docker-compose logs -f
-
-# View logs for specific service
-docker-compose logs -f service_name
-
-# List services
-docker-compose ps
-
-# Execute command in service
-docker-compose exec service_name /bin/bash
-
-# Rebuild services
-docker-compose build
-
-# Rebuild and start
-docker-compose up --build
-```
-
-## Network Management
-
-```bash
-# List networks
-docker network ls
-
-# Create network
-docker network create my-network
-
-# Connect container to network
-docker network connect my-network container_name
-
-# Disconnect container from network
-docker network disconnect my-network container_name
-
-# Remove network
-docker network rm my-network
-
-# Inspect network
-docker network inspect my-network
-```
-
-## Volume Management
-
-```bash
-# List volumes
-docker volume ls
-
-# Create volume
-docker volume create my-volume
-
-# Remove volume
-docker volume rm my-volume
-
-# Remove all unused volumes
-docker volume prune
-
-# Inspect volume
-docker volume inspect my-volume
-```
+| Command | Description |
+|---------|-------------|
+| `docker-compose up` | Start services |
+| `docker-compose up -d` | Start in background |
+| `docker-compose up --build` | Rebuild and start |
+| `docker-compose down` | Stop and remove containers |
+| `docker-compose down -v` | Stop and remove volumes |
+| `docker-compose ps` | List services |
+| `docker-compose logs` | View logs |
+| `docker-compose logs -f` | Follow logs |
+| `docker-compose logs -f <service>` | Follow logs for specific service |
+| `docker-compose exec <service> <cmd>` | Execute command in service |
+| `docker-compose build` | Build/rebuild services |
+| `docker-compose restart <service>` | Restart service |
+| `docker-compose stop` | Stop services |
+| `docker-compose start` | Start services |
 
 ## System Management
 
-```bash
-# Show Docker disk usage
-docker system df
+| Command | Description |
+|---------|-------------|
+| `docker info` | Show system information |
+| `docker version` | Show Docker version |
+| `docker system df` | Show disk usage |
+| `docker system prune` | Remove unused data (containers, networks, images) |
+| `docker system prune -a` | Remove all unused data |
+| `docker system prune -a --volumes` | Remove all unused data including volumes |
+| `docker events` | Show real-time events |
 
-# Remove all unused resources
-docker system prune
-
-# Remove all unused resources including volumes
-docker system prune -a --volumes
-
-# Show Docker info
-docker info
-
-# Show Docker version
-docker version
-```
-
-## Debugging
-
-```bash
-# View container processes
-docker top container_name
-
-# View real-time events
-docker events
-
-# View container resource usage
-docker stats
-
-# Export container filesystem
-docker export container_name > container.tar
-
-# View container changes
-docker diff container_name
-
-# View port mappings
-docker port container_name
-```
-
-## Quick Tips
-
-- Use `docker ps -q` to get only container IDs
-- Combine commands: `docker rm $(docker ps -a -q)` to remove all containers
-- Use `--help` with any command for more options: `docker run --help`
-- Set aliases for common commands in your `.bashrc` or `.zshrc`
-
-## Common Aliases
-
-```bash
-alias dps='docker ps'
-alias dpsa='docker ps -a'
-alias di='docker images'
-alias dex='docker exec -it'
-alias dlog='docker logs -f'
-alias dstop='docker stop $(docker ps -q)'
-alias drm='docker rm $(docker ps -a -q)'
-alias drmi='docker rmi $(docker images -q)'
-```
 
 ## Tags
 
@@ -295,4 +141,4 @@ alias drmi='docker rmi $(docker images -q)'
 
 ---
 
-*Last updated: 2025-10-30*
+*Last updated: 2025-10-31*

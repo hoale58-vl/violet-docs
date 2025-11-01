@@ -1,487 +1,152 @@
-# Helm CLI Cheatsheet
+# Helm CLI Cheat Sheet
 
 Quick reference for essential Helm commands.
 
 ## Repository Management
 
-```bash
-# Add repository
-helm repo add [NAME] [URL]
-helm repo add bitnami https://charts.bitnami.com/bitnami
+| Command | Description |
+|---------|-------------|
+| `helm repo add <name> <url>` | Add repository |
+| `helm repo list` | List repositories |
+| `helm repo update` | Update repository index |
+| `helm repo remove <name>` | Remove repository |
 
-# List repositories
-helm repo list
+## Search Charts
 
-# Update repositories
-helm repo update
-
-# Remove repository
-helm repo remove [NAME]
-
-# Show repository index
-helm repo index [DIR]
-```
-
-## Search
-
-```bash
-# Search repositories
-helm search repo [KEYWORD]
-helm search repo nginx
-
-# Search Artifact Hub
-helm search hub [KEYWORD]
-helm search hub wordpress
-
-# Search with versions
-helm search repo nginx --versions
-
-# Search with regex
-helm search repo 'ngin[x]'
-```
+| Command | Description |
+|---------|-------------|
+| `helm search repo <keyword>` | Search in added repositories |
+| `helm search hub <keyword>` | Search Artifact Hub |
+| `helm search repo <name> --versions` | Show all versions |
 
 ## Chart Information
 
-```bash
-# Show chart information
-helm show chart [CHART]
-helm show chart bitnami/nginx
-
-# Show values
-helm show values [CHART]
-helm show values bitnami/nginx > values.yaml
-
-# Show README
-helm show readme [CHART]
-
-# Show all information
-helm show all [CHART]
-```
+| Command | Description |
+|---------|-------------|
+| `helm show chart <chart>` | Show chart metadata |
+| `helm show values <chart>` | Show default values |
+| `helm show readme <chart>` | Show README |
+| `helm show all <chart>` | Show all information |
 
 ## Install
 
-```bash
-# Basic install
-helm install [RELEASE] [CHART]
-helm install my-nginx bitnami/nginx
-
-# Install with custom values file
-helm install [RELEASE] [CHART] -f values.yaml
-helm install my-nginx bitnami/nginx -f custom-values.yaml
-
-# Install with inline values
-helm install [RELEASE] [CHART] --set key=value
-helm install my-nginx bitnami/nginx --set replicaCount=3
-
-# Install with multiple values files
-helm install my-nginx bitnami/nginx -f values1.yaml -f values2.yaml
-
-# Install in specific namespace
-helm install [RELEASE] [CHART] -n [NAMESPACE] --create-namespace
-helm install my-nginx bitnami/nginx -n production --create-namespace
-
-# Install from local chart
-helm install my-release ./my-chart
-
-# Install from tar archive
-helm install my-release my-chart-0.1.0.tgz
-
-# Install from URL
-helm install my-release https://example.com/charts/my-chart-0.1.0.tgz
-
-# Dry run (test without installing)
-helm install [RELEASE] [CHART] --dry-run --debug
-
-# Generate name
-helm install bitnami/nginx --generate-name
-
-# Wait for resources to be ready
-helm install [RELEASE] [CHART] --wait --timeout 10m
-
-# Skip CRDs
-helm install [RELEASE] [CHART] --skip-crds
-
-# Verify charts (requires provenance)
-helm install [RELEASE] [CHART] --verify
-```
+| Command | Description |
+|---------|-------------|
+| `helm install <release> <chart>` | Install chart |
+| `helm install <release> <chart> -f values.yaml` | Install with custom values file |
+| `helm install <release> <chart> --set key=value` | Install with inline values |
+| `helm install <release> <chart> -n <ns> --create-namespace` | Install in namespace |
+| `helm install <release> <chart> --dry-run --debug` | Test without installing |
+| `helm install <release> <chart> --wait --timeout 10m` | Wait for resources to be ready |
+| `helm install <chart> --generate-name` | Auto-generate release name |
 
 ## List Releases
 
-```bash
-# List releases in current namespace
-helm list
-helm ls
+| Command | Description |
+|---------|-------------|
+| `helm list` | List releases in current namespace |
+| `helm list -A` | List all releases in all namespaces |
+| `helm list -n <namespace>` | List releases in specific namespace |
+| `helm list --all` | List all (including failed/deleted) |
+| `helm list -o json` | Output in JSON format |
 
-# List all releases in all namespaces
-helm list --all-namespaces
-helm list -A
+## Status & Info
 
-# List releases in specific namespace
-helm list -n [NAMESPACE]
-
-# List all (including failed/deleted)
-helm list --all
-
-# Filter by status
-helm list --deployed
-helm list --failed
-helm list --pending
-helm list --superseded
-
-# Output formats
-helm list -o json
-helm list -o yaml
-helm list -o table
-
-# Sort
-helm list --sort-reverse
-helm list --max 10
-```
-
-## Status
-
-```bash
-# Get release status
-helm status [RELEASE]
-helm status my-nginx
-
-# Status in specific namespace
-helm status [RELEASE] -n [NAMESPACE]
-
-# Show resources
-helm status [RELEASE] --show-resources
-
-# Output format
-helm status [RELEASE] -o json
-```
-
-## Get
-
-```bash
-# Get manifest
-helm get manifest [RELEASE]
-
-# Get values
-helm get values [RELEASE]
-
-# Get all values (including defaults)
-helm get values [RELEASE] --all
-
-# Get values in JSON
-helm get values [RELEASE] -o json
-
-# Get hooks
-helm get hooks [RELEASE]
-
-# Get notes
-helm get notes [RELEASE]
-
-# Get all information
-helm get all [RELEASE]
-```
+| Command | Description |
+|---------|-------------|
+| `helm status <release>` | Get release status |
+| `helm get manifest <release>` | Get Kubernetes manifest |
+| `helm get values <release>` | Get custom values |
+| `helm get values <release> --all` | Get all values (including defaults) |
+| `helm get hooks <release>` | Get hooks |
+| `helm get notes <release>` | Get release notes |
 
 ## Upgrade
 
-```bash
-# Basic upgrade
-helm upgrade [RELEASE] [CHART]
-helm upgrade my-nginx bitnami/nginx
-
-# Upgrade with new values
-helm upgrade [RELEASE] [CHART] -f values.yaml
-
-# Upgrade with inline values
-helm upgrade [RELEASE] [CHART] --set key=value
-
-# Install if not exists
-helm upgrade --install [RELEASE] [CHART]
-helm upgrade --install my-nginx bitnami/nginx
-
-# Force upgrade (recreate resources)
-helm upgrade [RELEASE] [CHART] --force
-
-# Reset values to chart defaults
-helm upgrade [RELEASE] [CHART] --reset-values
-
-# Reuse previous values
-helm upgrade [RELEASE] [CHART] --reuse-values
-
-# Wait for upgrade to complete
-helm upgrade [RELEASE] [CHART] --wait --timeout 10m
-
-# Atomic upgrade (rollback on failure)
-helm upgrade [RELEASE] [CHART] --atomic
-
-# Cleanup on failure
-helm upgrade [RELEASE] [CHART] --cleanup-on-fail
-
-# Dry run
-helm upgrade [RELEASE] [CHART] --dry-run --debug
-```
+| Command | Description |
+|---------|-------------|
+| `helm upgrade <release> <chart>` | Upgrade release |
+| `helm upgrade <release> <chart> -f values.yaml` | Upgrade with new values |
+| `helm upgrade --install <release> <chart>` | Install if not exists, upgrade if exists |
+| `helm upgrade <release> <chart> --force` | Force recreate resources |
+| `helm upgrade <release> <chart> --atomic` | Rollback on failure |
+| `helm upgrade <release> <chart> --wait` | Wait for completion |
+| `helm upgrade <release> <chart> --reuse-values` | Reuse previous values |
+| `helm upgrade <release> <chart> --reset-values` | Reset to chart defaults |
 
 ## Rollback
 
-```bash
-# Rollback to previous version
-helm rollback [RELEASE]
-helm rollback my-nginx
-
-# Rollback to specific revision
-helm rollback [RELEASE] [REVISION]
-helm rollback my-nginx 3
-
-# Rollback with wait
-helm rollback [RELEASE] --wait
-
-# Rollback with timeout
-helm rollback [RELEASE] --timeout 10m
-
-# Force rollback
-helm rollback [RELEASE] --force
-
-# Cleanup on failure
-helm rollback [RELEASE] --cleanup-on-fail
-
-# Dry run
-helm rollback [RELEASE] [REVISION] --dry-run
-```
-
-## History
-
-```bash
-# View release history
-helm history [RELEASE]
-helm history my-nginx
-
-# View in specific namespace
-helm history [RELEASE] -n [NAMESPACE]
-
-# Limit results
-helm history [RELEASE] --max 5
-
-# Output format
-helm history [RELEASE] -o json
-helm history [RELEASE] -o yaml
-```
+| Command | Description |
+|---------|-------------|
+| `helm rollback <release>` | Rollback to previous version |
+| `helm rollback <release> <revision>` | Rollback to specific revision |
+| `helm rollback <release> --wait` | Wait for rollback to complete |
+| `helm history <release>` | View release history |
 
 ## Uninstall
 
-```bash
-# Uninstall release
-helm uninstall [RELEASE]
-helm uninstall my-nginx
-
-# Uninstall from specific namespace
-helm uninstall [RELEASE] -n [NAMESPACE]
-
-# Keep history
-helm uninstall [RELEASE] --keep-history
-
-# Dry run
-helm uninstall [RELEASE] --dry-run
-
-# Wait for deletion
-helm uninstall [RELEASE] --wait
-
-# Set timeout
-helm uninstall [RELEASE] --timeout 10m
-```
+| Command | Description |
+|---------|-------------|
+| `helm uninstall <release>` | Uninstall release |
+| `helm uninstall <release> -n <namespace>` | Uninstall from specific namespace |
+| `helm uninstall <release> --keep-history` | Keep history |
+| `helm uninstall <release> --wait` | Wait for deletion |
 
 ## Create & Package
 
-```bash
-# Create new chart
-helm create [NAME]
-helm create my-chart
-
-# Package chart
-helm package [CHART]
-helm package ./my-chart
-
-# Package with version
-helm package ./my-chart --version 1.0.0
-
-# Package with app version
-helm package ./my-chart --app-version 2.0.0
-
-# Sign package
-helm package ./my-chart --sign --key mykey --keyring ~/.gnupg/secring.gpg
-
-# Set destination
-helm package ./my-chart -d ./output
-
-# Update dependencies before packaging
-helm package ./my-chart --dependency-update
-```
+| Command | Description |
+|---------|-------------|
+| `helm create <name>` | Create new chart |
+| `helm package <chart>` | Package chart into .tgz |
+| `helm package <chart> --version 1.0.0` | Package with specific version |
+| `helm package <chart> -d ./output` | Package to specific directory |
 
 ## Dependencies
 
-```bash
-# Update dependencies
-helm dependency update [CHART]
-helm dependency update ./my-chart
+| Command | Description |
+|---------|-------------|
+| `helm dependency update <chart>` | Update dependencies |
+| `helm dependency build <chart>` | Build dependencies |
+| `helm dependency list <chart>` | List dependencies |
 
-# Build dependencies
-helm dependency build [CHART]
+## Template & Lint
 
-# List dependencies
-helm dependency list [CHART]
-```
-
-## Template
-
-```bash
-# Render templates locally
-helm template [RELEASE] [CHART]
-helm template my-nginx bitnami/nginx
-
-# Render with values
-helm template [RELEASE] [CHART] -f values.yaml
-
-# Render specific templates
-helm template [RELEASE] [CHART] -s templates/deployment.yaml
-
-# Show only manifests
-helm template [RELEASE] [CHART] --show-only templates/deployment.yaml
-
-# Output to file
-helm template [RELEASE] [CHART] > output.yaml
-
-# Debug
-helm template [RELEASE] [CHART] --debug
-
-# Validate
-helm template [RELEASE] [CHART] --validate
-
-# Include CRDs
-helm template [RELEASE] [CHART] --include-crds
-
-# Set namespace
-helm template [RELEASE] [CHART] -n production
-
-# Is upgrade mode
-helm template [RELEASE] [CHART] --is-upgrade
-```
-
-## Lint
-
-```bash
-# Lint chart
-helm lint [CHART]
-helm lint ./my-chart
-
-# Lint with values
-helm lint [CHART] -f values.yaml
-
-# Strict mode
-helm lint [CHART] --strict
-
-# Quiet mode
-helm lint [CHART] --quiet
-
-# Lint with specific values
-helm lint [CHART] --set key=value
-```
+| Command | Description |
+|---------|-------------|
+| `helm template <release> <chart>` | Render templates locally |
+| `helm template <release> <chart> -f values.yaml` | Render with custom values |
+| `helm template <release> <chart> --debug` | Render with debug output |
+| `helm lint <chart>` | Lint chart |
+| `helm lint <chart> --strict` | Strict linting |
+| `helm lint <chart> -f values.yaml` | Lint with values |
 
 ## Test
 
-```bash
-# Run tests
-helm test [RELEASE]
-helm test my-nginx
+| Command | Description |
+|---------|-------------|
+| `helm test <release>` | Run tests |
+| `helm test <release> --logs` | Show test logs |
+| `helm test <release> --timeout 5m` | Set timeout |
 
-# Show logs
-helm test [RELEASE] --logs
+## Pull Charts
 
-# Filter by name
-helm test [RELEASE] --filter name=test-connection
-
-# Timeout
-helm test [RELEASE] --timeout 5m
-```
-
-## Plugin
-
-```bash
-# List plugins
-helm plugin list
-
-# Install plugin
-helm plugin install [URL]
-helm plugin install https://github.com/databus23/helm-diff
-
-# Update plugin
-helm plugin update [NAME]
-
-# Uninstall plugin
-helm plugin uninstall [NAME]
-```
-
-## Pull
-
-```bash
-# Pull chart
-helm pull [CHART]
-helm pull bitnami/nginx
-
-# Pull and extract
-helm pull [CHART] --untar
-
-# Pull specific version
-helm pull [CHART] --version 1.0.0
-
-# Pull to directory
-helm pull [CHART] -d ./charts
-
-# Pull with provenance
-helm pull [CHART] --prov
-
-# Verify signature
-helm pull [CHART] --verify
-```
+| Command | Description |
+|---------|-------------|
+| `helm pull <chart>` | Pull chart to local directory |
+| `helm pull <chart> --untar` | Pull and extract |
+| `helm pull <chart> --version 1.0.0` | Pull specific version |
+| `helm pull <chart> -d ./charts` | Pull to directory |
 
 ## Registry (OCI)
 
-```bash
-# Login to registry
-helm registry login registry.example.com -u username
+| Command | Description |
+|---------|-------------|
+| `helm registry login <registry> -u <user>` | Login to OCI registry |
+| `helm registry logout <registry>` | Logout from registry |
+| `helm push <chart>.tgz oci://<registry>/charts` | Push chart to OCI registry |
+| `helm pull oci://<registry>/charts/<chart> --version 1.0.0` | Pull from OCI registry |
 
-# Logout
-helm registry logout registry.example.com
-
-# Push chart to OCI registry
-helm push my-chart-0.1.0.tgz oci://registry.example.com/charts
-
-# Pull from OCI registry
-helm pull oci://registry.example.com/charts/my-chart --version 0.1.0
-
-# Install from OCI
-helm install my-release oci://registry.example.com/charts/my-chart --version 0.1.0
-```
-
-## Environment & Config
-
-```bash
-# Show environment info
-helm env
-
-# Get Helm home
-echo $HELM_HOME
-
-# Show version
-helm version
-
-# Show version (short)
-helm version --short
-
-# Show client and server version
-helm version
-
-# Helm config home
-helm env | grep HELM_CONFIG_HOME
-```
-
-## Useful Flags
+## Common Flags
 
 | Flag | Description |
 |------|-------------|
@@ -492,83 +157,71 @@ helm env | grep HELM_CONFIG_HOME
 | `--dry-run` | Simulate operation |
 | `--debug` | Enable verbose output |
 | `--wait` | Wait for resources to be ready |
-| `--timeout` | Time to wait (default 5m0s) |
+| `--timeout` | Time to wait (default 5m) |
 | `--atomic` | Rollback on failure |
-| `--force` | Force update through delete/recreate |
-| `--cleanup-on-fail` | Delete new resources on failure |
-| `-o, --output` | Output format (table, json, yaml) |
 | `-A, --all-namespaces` | List across all namespaces |
-| `--version` | Specify chart version |
+| `-o, --output` | Output format (table, json, yaml) |
 
-## Quick Workflows
+## Common Workflows
 
-### Install and Customize
+### Install with Custom Values
 
 ```bash
-# 1. Search
+helm repo add bitnami https://charts.bitnami.com/bitnami
 helm search repo wordpress
-
-# 2. Show values
 helm show values bitnami/wordpress > values.yaml
-
-# 3. Edit values.yaml
-
-# 4. Install
+# Edit values.yaml
 helm install my-wordpress bitnami/wordpress -f values.yaml -n prod --create-namespace
 ```
 
-### Update Release
+### Upgrade Release
 
 ```bash
-# 1. Check current values
-helm get values my-release
-
-# 2. Update
-helm upgrade my-release bitnami/nginx --set replicaCount=5
-
-# 3. Check status
-helm status my-release
-
-# 4. View history
+helm get values my-release > current-values.yaml
+# Edit current-values.yaml
+helm upgrade my-release bitnami/nginx -f current-values.yaml
 helm history my-release
+```
 
-# 5. Rollback if needed
-helm rollback my-release
+### Rollback Release
+
+```bash
+helm history my-release
+helm rollback my-release 3
+helm status my-release
+```
+
+### Create and Package Chart
+
+```bash
+helm create my-chart
+helm lint my-chart
+helm template test my-chart
+helm package my-chart
+helm install my-release ./my-chart-0.1.0.tgz
 ```
 
 ### Debug Installation
 
 ```bash
-# 1. Dry run
 helm install my-release ./chart --dry-run --debug
-
-# 2. Template locally
 helm template my-release ./chart
-
-# 3. Lint chart
-helm lint ./chart
-
-# 4. Install with debug
-helm install my-release ./chart --debug --wait
+helm lint ./chart --strict
+helm install my-release ./chart --wait --timeout 10m
 ```
 
-### Work with Chart
+## Useful Aliases
 
 ```bash
-# 1. Create chart
-helm create my-app
-
-# 2. Lint
-helm lint ./my-app
-
-# 3. Template test
-helm template test ./my-app
-
-# 4. Package
-helm package ./my-app
-
-# 5. Install from package
-helm install my-release ./my-app-0.1.0.tgz
+alias h='helm'
+alias hl='helm list'
+alias hla='helm list -A'
+alias hi='helm install'
+alias hu='helm upgrade'
+alias hr='helm rollback'
+alias hd='helm uninstall'
+alias hs='helm status'
+alias hg='helm get'
 ```
 
 ## Tags
@@ -577,4 +230,4 @@ helm install my-release ./my-app-0.1.0.tgz
 
 ---
 
-*Last updated: 2025-10-30*
+*Last updated: 2025-10-31*

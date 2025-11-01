@@ -1,4 +1,4 @@
-# Docker Best Practices
+# Best Practices
 
 Essential best practices for working with Docker containers.
 

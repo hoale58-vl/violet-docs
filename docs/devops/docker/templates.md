@@ -1,4 +1,4 @@
-# Docker Templates
+# ITemplates
 
 Production-ready Dockerfile templates for common application stacks.
 

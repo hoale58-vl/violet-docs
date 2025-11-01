@@ -1,433 +1,436 @@
 # AWS (Amazon Web Services)
 
-Best practices and essential services for building on Amazon Web Services.
+Best practices, architecture patterns, and essential services for building on Amazon Web Services.
 
 ## Overview
 
 AWS is the world's most comprehensive cloud platform, offering over 200 services for compute, storage, databases, networking, and more.
 
-## Core Services
-
-### Compute
-
-#### EC2 (Elastic Compute Cloud)
-```bash
-# Launch instance
-aws ec2 run-instances \
-  --image-id ami-xxxxx \
-  --instance-type t3.micro \
-  --key-name my-key \
-  --security-group-ids sg-xxxxx \
-  --subnet-id subnet-xxxxx
-
-# List instances
-aws ec2 describe-instances
-
-# Stop instance
-aws ec2 stop-instances --instance-ids i-xxxxx
-
-# Start instance
-aws ec2 start-instances --instance-ids i-xxxxx
-
-# Terminate instance
-aws ec2 terminate-instances --instance-ids i-xxxxx
-```
-
-#### Lambda (Serverless)
-```bash
-# Create function
-aws lambda create-function \
-  --function-name my-function \
-  --runtime nodejs18.x \
-  --role arn:aws:iam::123456789012:role/lambda-role \
-  --handler index.handler \
-  --zip-file fileb://function.zip
-
-# Invoke function
-aws lambda invoke \
-  --function-name my-function \
-  --payload '{"key": "value"}' \
-  response.json
-
-# Update function code
-aws lambda update-function-code \
-  --function-name my-function \
-  --zip-file fileb://function.zip
-```
-
-#### ECS (Elastic Container Service)
-```bash
-# Create cluster
-aws ecs create-cluster --cluster-name my-cluster
-
-# Register task definition
-aws ecs register-task-definition --cli-input-json file://task-definition.json
-
-# Run task
-aws ecs run-task \
-  --cluster my-cluster \
-  --task-definition my-task:1 \
-  --count 1
-```
-
-### Storage
-
-#### S3 (Simple Storage Service)
-```bash
-# Create bucket
-aws s3 mb s3://my-bucket
-
-# Upload file
-aws s3 cp file.txt s3://my-bucket/
-
-# Download file
-aws s3 cp s3://my-bucket/file.txt .
-
-# Sync directory
-aws s3 sync ./local-folder s3://my-bucket/
-
-# List objects
-aws s3 ls s3://my-bucket/
-
-# Delete object
-aws s3 rm s3://my-bucket/file.txt
-
-# Delete bucket
-aws s3 rb s3://my-bucket --force
-```
-
-**S3 Lifecycle Policy:**
-```json
-{
-  "Rules": [{
-    "Id": "Move to IA after 30 days",
-    "Status": "Enabled",
-    "Transitions": [{
-      "Days": 30,
-      "StorageClass": "STANDARD_IA"
-    }, {
-      "Days": 90,
-      "StorageClass": "GLACIER"
-    }]
-  }]
-}
-```
-
-#### EBS (Elastic Block Store)
-```bash
-# Create volume
-aws ec2 create-volume \
-  --availability-zone us-east-1a \
-  --size 100 \
-  --volume-type gp3
-
-# Attach volume
-aws ec2 attach-volume \
-  --volume-id vol-xxxxx \
-  --instance-id i-xxxxx \
-  --device /dev/sdf
-```
-
-### Databases
-
-#### RDS (Relational Database Service)
-```bash
-# Create DB instance
-aws rds create-db-instance \
-  --db-instance-identifier mydb \
-  --db-instance-class db.t3.micro \
-  --engine postgres \
-  --master-username admin \
-  --master-user-password mypassword \
-  --allocated-storage 20
-
-# Create snapshot
-aws rds create-db-snapshot \
-  --db-instance-identifier mydb \
-  --db-snapshot-identifier mydb-snapshot
-```
-
-#### DynamoDB (NoSQL)
-```bash
-# Create table
-aws dynamodb create-table \
-  --table-name Users \
-  --attribute-definitions \
-    AttributeName=UserId,AttributeType=S \
-  --key-schema \
-    AttributeName=UserId,KeyType=HASH \
-  --provisioned-throughput \
-    ReadCapacityUnits=5,WriteCapacityUnits=5
-
-# Put item
-aws dynamodb put-item \
-  --table-name Users \
-  --item '{"UserId": {"S": "user123"}, "Name": {"S": "John"}}'
-
-# Get item
-aws dynamodb get-item \
-  --table-name Users \
-  --key '{"UserId": {"S": "user123"}}'
-```
-
-### Networking
-
-#### VPC (Virtual Private Cloud)
-```bash
-# Create VPC
-aws ec2 create-vpc --cidr-block 10.0.0.0/16
-
-# Create subnet
-aws ec2 create-subnet \
-  --vpc-id vpc-xxxxx \
-  --cidr-block 10.0.1.0/24 \
-  --availability-zone us-east-1a
-
-# Create internet gateway
-aws ec2 create-internet-gateway
-
-# Attach to VPC
-aws ec2 attach-internet-gateway \
-  --internet-gateway-id igw-xxxxx \
-  --vpc-id vpc-xxxxx
-```
-
-#### Load Balancer
-```bash
-# Create Application Load Balancer
-aws elbv2 create-load-balancer \
-  --name my-alb \
-  --subnets subnet-xxxxx subnet-yyyyy \
-  --security-groups sg-xxxxx
-
-# Create target group
-aws elbv2 create-target-group \
-  --name my-targets \
-  --protocol HTTP \
-  --port 80 \
-  --vpc-id vpc-xxxxx
-```
-
-## IAM (Identity and Access Management)
-
-### Users and Roles
-
-```bash
-# Create user
-aws iam create-user --user-name john
-
-# Create role
-aws iam create-role \
-  --role-name lambda-execution-role \
-  --assume-role-policy-document file://trust-policy.json
-
-# Attach policy to role
-aws iam attach-role-policy \
-  --role-name lambda-execution-role \
-  --policy-arn arn:aws:iam::aws:policy/AWSLambdaBasicExecutionRole
-
-# Create access key
-aws iam create-access-key --user-name john
-```
-
-**IAM Policy Example:**
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [{
-    "Effect": "Allow",
-    "Action": [
-      "s3:GetObject",
-      "s3:PutObject"
-    ],
-    "Resource": "arn:aws:s3:::my-bucket/*"
-  }]
-}
-```
-
-## CloudFormation (Infrastructure as Code)
-
-**Basic Template:**
-```yaml
-AWSTemplateFormatVersion: '2010-09-09'
-Description: Simple EC2 instance
-
-Parameters:
-  KeyName:
-    Type: AWS::EC2::KeyPair::KeyName
-    Description: EC2 Key Pair
-
-Resources:
-  MyInstance:
-    Type: AWS::EC2::Instance
-    Properties:
-      ImageId: ami-xxxxx
-      InstanceType: t3.micro
-      KeyName: !Ref KeyName
-      Tags:
-        - Key: Name
-          Value: MyInstance
-
-Outputs:
-  InstanceId:
-    Value: !Ref MyInstance
-    Description: Instance ID
-```
-
-```bash
-# Create stack
-aws cloudformation create-stack \
-  --stack-name my-stack \
-  --template-body file://template.yaml \
-  --parameters ParameterKey=KeyName,ParameterValue=my-key
-
-# Update stack
-aws cloudformation update-stack \
-  --stack-name my-stack \
-  --template-body file://template.yaml
-
-# Delete stack
-aws cloudformation delete-stack --stack-name my-stack
-```
-
-## CloudWatch (Monitoring)
-
-```bash
-# Put metric data
-aws cloudwatch put-metric-data \
-  --namespace MyApp \
-  --metric-name Requests \
-  --value 100
-
-# Create alarm
-aws cloudwatch put-metric-alarm \
-  --alarm-name high-cpu \
-  --alarm-description "Alert when CPU exceeds 80%" \
-  --metric-name CPUUtilization \
-  --namespace AWS/EC2 \
-  --statistic Average \
-  --period 300 \
-  --threshold 80 \
-  --comparison-operator GreaterThanThreshold \
-  --evaluation-periods 2
-
-# View logs
-aws logs tail /aws/lambda/my-function --follow
-```
-
-## AWS CLI Configuration
-
-```bash
-# Configure AWS CLI
-aws configure
-
-# Use profiles
-aws configure --profile production
-aws s3 ls --profile production
-
-# Set default region
-aws configure set region us-west-2
-
-# Use environment variables
-export AWS_ACCESS_KEY_ID=xxxxx
-export AWS_SECRET_ACCESS_KEY=xxxxx
-export AWS_DEFAULT_REGION=us-west-2
-```
-
 ## Best Practices
 
 ### Security
-1. **Enable MFA** for root and IAM users
-2. **Use IAM roles** instead of access keys for EC2
-3. **Encrypt data** at rest and in transit
-4. **Use Security Groups** as firewalls
-5. **Enable CloudTrail** for audit logging
-6. **Use Secrets Manager** for credentials
-7. **Regular security audits** with AWS Config
+
+**1. Identity and Access Management**
+
+- Enable **MFA (Multi-Factor Authentication)** for all users, especially root account
+- Use **IAM roles** instead of access keys for EC2 instances and services
+- Follow **least privilege principle** - grant only necessary permissions
+- Implement **IAM password policies** with complexity requirements
+- Rotate **access keys** regularly (90 days maximum)
+- Use **AWS Organizations** for multi-account management
+- Enable **AWS CloudTrail** for comprehensive audit logging
+
+**2. Data Protection**
+
+- Encrypt data **at rest** using:
+  - S3: Server-side encryption (SSE-S3, SSE-KMS)
+  - EBS: Volume encryption
+  - RDS: Database encryption
+- Encrypt data **in transit** using TLS/SSL
+- Use **AWS KMS** (Key Management Service) for encryption key management
+- Enable **S3 versioning** for important data
+- Implement **S3 bucket policies** to prevent public access
+- Use **AWS Secrets Manager** for managing credentials and API keys
+
+**3. Network Security**
+
+- Use **Security Groups** as stateful firewalls
+- Implement **Network ACLs** for subnet-level security
+- Enable **VPC Flow Logs** for network traffic monitoring
+- Use **AWS WAF** (Web Application Firewall) for application protection
+- Implement **AWS Shield** for DDoS protection
+- Use **PrivateLink** for private connectivity to AWS services
+
+**4. Monitoring and Compliance**
+
+- Enable **AWS Config** for resource compliance monitoring
+- Use **Amazon GuardDuty** for threat detection
+- Implement **AWS Security Hub** for centralized security findings
+- Set up **CloudWatch alarms** for security events
+- Regular security assessments using **AWS Trusted Advisor**
+- Conduct **vulnerability scans** and penetration testing
 
 ### Cost Optimization
-1. **Use Reserved Instances** for predictable workloads
-2. **Enable Auto Scaling** for variable loads
-3. **Use Spot Instances** for fault-tolerant workloads
-4. **Set up billing alerts** in CloudWatch
-5. **Delete unused resources** regularly
-6. **Use S3 lifecycle policies** for storage optimization
-7. **Right-size instances** based on usage
+
+**1. Compute Cost Optimization**
+
+- Use **Reserved Instances** (RI) for predictable, steady-state workloads (up to 72% savings)
+- Leverage **Savings Plans** for flexible commitment-based discounts
+- Use **Spot Instances** for fault-tolerant, flexible workloads (up to 90% savings)
+- Right-size instances using **AWS Compute Optimizer**
+- Implement **Auto Scaling** to match capacity with demand
+- Use **Lambda** for event-driven workloads to avoid idle compute costs
+- Consider **Graviton instances** for better price-performance
+
+**2. Storage Cost Optimization**
+
+- Implement **S3 Intelligent-Tiering** for automatic cost optimization
+- Use **S3 Lifecycle policies** to transition data to cheaper storage classes
+- Delete **incomplete multipart uploads** and old snapshots
+- Use **EBS gp3** instead of gp2 for better price-performance
+- Enable **S3 Transfer Acceleration** only when needed
+- Compress and deduplicate data before storage
+
+**3. Monitoring and Governance**
+
+- Set up **AWS Budgets** with alerts for cost thresholds
+- Use **Cost Explorer** for detailed cost analysis and forecasting
+- Tag resources consistently for **cost allocation tracking**
+- Enable **Cost Anomaly Detection** for unusual spending patterns
+- Review **Trusted Advisor** cost optimization recommendations
+- Delete unused **Elastic IPs**, **EBS volumes**, and **load balancers**
+- Use **AWS Cost and Usage Reports** for detailed billing analysis
+
+**4. Data Transfer Optimization**
+
+- Minimize cross-region and cross-AZ data transfer
+- Use **CloudFront CDN** to reduce origin data transfer costs
+- Implement **VPC endpoints** to avoid NAT Gateway charges
+- Use **S3 Transfer Acceleration** judiciously
 
 ### High Availability
-1. **Multi-AZ deployments** for critical services
-2. **Use Auto Scaling Groups** for EC2
-3. **Configure RDS Multi-AZ** for databases
-4. **Use Route 53** for DNS failover
-5. **Implement health checks** for load balancers
-6. **Regular backups** and disaster recovery testing
 
-### Architecture Patterns
+**1. Multi-AZ Architecture**
 
-#### Serverless Web Application
+- Deploy critical workloads across **multiple Availability Zones**
+- Use **RDS Multi-AZ** for automatic database failover
+- Configure **ElastiCache with Multi-AZ** for cache resilience
+- Distribute load balancers across multiple AZs
+- Use **Auto Scaling Groups** spanning multiple AZs
+
+**2. Fault Tolerance and Resilience**
+
+- Implement **health checks** for EC2 instances and load balancers
+- Use **Application Load Balancer** with health check grace periods
+- Configure **RDS automated backups** and point-in-time recovery
+- Enable **DynamoDB point-in-time recovery** (PITR)
+- Implement **S3 Cross-Region Replication** for critical data
+- Use **Amazon Route 53** health checks and DNS failover
+
+**3. Disaster Recovery**
+
+- Define **RTO** (Recovery Time Objective) and **RPO** (Recovery Point Objective)
+- Implement appropriate DR strategy:
+  - **Backup and Restore**: Lowest cost, slower recovery
+  - **Pilot Light**: Core infrastructure always running
+  - **Warm Standby**: Scaled-down production environment
+  - **Multi-Region Active-Active**: Highest availability, highest cost
+- Regular **disaster recovery testing**
+- Use **AWS Backup** for centralized backup management
+- Store backups in different regions
+
+**4. Monitoring and Alerting**
+
+- Set up **CloudWatch dashboards** for key metrics
+- Configure **CloudWatch alarms** for critical thresholds
+- Use **AWS X-Ray** for distributed tracing
+- Implement **SNS notifications** for critical alerts
+- Monitor **AWS Health Dashboard** for service events
+
+## Architecture Patterns
+
+### 1. Three-Tier Web Application
+
+```mermaid
+graph TB
+    subgraph "Presentation Tier"
+        CF[CloudFront CDN]
+        S3[S3 Static Assets]
+    end
+
+    subgraph "Application Tier"
+        ALB[Application Load Balancer]
+        ASG[Auto Scaling Group<br/>EC2 Instances]
+    end
+
+    subgraph "Data Tier"
+        RDS[(RDS Multi-AZ<br/>PostgreSQL)]
+        CACHE[(ElastiCache<br/>Redis)]
+    end
+
+    Users --> CF
+    CF --> S3
+    Users --> ALB
+    ALB --> ASG
+    ASG --> CACHE
+    ASG --> RDS
+
+    style CF fill:#FF9900
+    style ALB fill:#FF9900
+    style RDS fill:#3B48CC
+    style CACHE fill:#CC2264
 ```
-CloudFront → API Gateway → Lambda → DynamoDB
-                                  → S3 (static content)
+
+### 2. Serverless Application
+
+```mermaid
+graph LR
+    subgraph "Frontend"
+        CF[CloudFront]
+        S3[S3 Static Website]
+    end
+
+    subgraph "API Layer"
+        APIGW[API Gateway]
+        Lambda[Lambda Functions]
+    end
+
+    subgraph "Data Layer"
+        DDB[(DynamoDB)]
+        S3Data[S3 Data Lake]
+    end
+
+    Users --> CF
+    CF --> S3
+    Users --> APIGW
+    APIGW --> Lambda
+    Lambda --> DDB
+    Lambda --> S3Data
+
+    style CF fill:#FF9900
+    style APIGW fill:#FF4F8B
+    style Lambda fill:#FF9900
+    style DDB fill:#3B48CC
 ```
 
-#### Microservices on ECS
+### 3. Microservices on ECS/EKS
+
+```mermaid
+graph TB
+    subgraph "Load Balancing"
+        ALB[Application Load Balancer]
+    end
+
+    subgraph "Container Orchestration"
+        ECS[ECS Fargate Cluster]
+        Service1[User Service]
+        Service2[Order Service]
+        Service3[Payment Service]
+    end
+
+    subgraph "Data Stores"
+        RDS[(RDS)]
+        DDB[(DynamoDB)]
+        REDIS[(ElastiCache)]
+    end
+
+    subgraph "Messaging"
+        SQS[SQS Queue]
+        SNS[SNS Topic]
+    end
+
+    Users --> ALB
+    ALB --> ECS
+    ECS --> Service1
+    ECS --> Service2
+    ECS --> Service3
+
+    Service1 --> RDS
+    Service2 --> DDB
+    Service3 --> REDIS
+
+    Service2 --> SQS
+    Service3 --> SNS
+
+    style ALB fill:#FF9900
+    style ECS fill:#FF9900
+    style RDS fill:#3B48CC
+    style DDB fill:#3B48CC
 ```
-ALB → ECS Fargate Services → RDS/DynamoDB
-                           → ElastiCache
+
+### 4. Event-Driven Architecture
+
+```mermaid
+graph LR
+    subgraph "Event Sources"
+        S3Events[S3 Events]
+        APIEvents[API Gateway]
+        ScheduleEvents[EventBridge]
+    end
+
+    subgraph "Processing"
+        Lambda1[Lambda:<br/>Transform]
+        Lambda2[Lambda:<br/>Process]
+        Lambda3[Lambda:<br/>Aggregate]
+    end
+
+    subgraph "Streaming"
+        Kinesis[Kinesis Data Stream]
+        Firehose[Kinesis Firehose]
+    end
+
+    subgraph "Storage"
+        DDB[(DynamoDB)]
+        S3Store[S3 Data Lake]
+        ES[OpenSearch]
+    end
+
+    S3Events --> Lambda1
+    APIEvents --> Lambda1
+    ScheduleEvents --> Lambda2
+
+    Lambda1 --> Kinesis
+    Kinesis --> Lambda2
+    Lambda2 --> Firehose
+    Lambda2 --> DDB
+
+    Firehose --> S3Store
+    Lambda3 --> ES
+
+    style Lambda1 fill:#FF9900
+    style Lambda2 fill:#FF9900
+    style Kinesis fill:#8C4FFF
 ```
 
-#### Data Pipeline
+### 5. Multi-Region Active-Active
+
+```mermaid
+graph TB
+    subgraph "Global"
+        R53[Route 53<br/>Global DNS]
+        CF[CloudFront CDN]
+    end
+
+    subgraph "Region 1: us-east-1"
+        ALB1[ALB]
+        APP1[Application Tier]
+        RDS1[(RDS Primary)]
+    end
+
+    subgraph "Region 2: us-west-2"
+        ALB2[ALB]
+        APP2[Application Tier]
+        RDS2[(RDS Replica)]
+    end
+
+    Users --> R53
+    R53 --> CF
+    CF --> ALB1
+    CF --> ALB2
+
+    ALB1 --> APP1
+    ALB2 --> APP2
+
+    APP1 --> RDS1
+    APP2 --> RDS2
+
+    RDS1 -.Cross-Region<br/>Replication.-> RDS2
+
+    style R53 fill:#8C4FFF
+    style CF fill:#FF9900
+    style RDS1 fill:#3B48CC
+    style RDS2 fill:#3B48CC
 ```
-S3 → Lambda → Kinesis → Lambda → Elasticsearch
-                               → S3 (data lake)
-```
 
-## Common AWS Services Quick Reference
+## Top AWS Services
 
-| Service | Purpose |
-|---------|---------|
-| EC2 | Virtual servers |
-| Lambda | Serverless compute |
-| S3 | Object storage |
-| RDS | Managed relational databases |
-| DynamoDB | NoSQL database |
-| ECS/EKS | Container orchestration |
-| VPC | Network isolation |
-| Route 53 | DNS service |
-| CloudFront | CDN |
-| API Gateway | API management |
-| SNS | Pub/sub messaging |
-| SQS | Message queuing |
-| CloudWatch | Monitoring and logs |
-| IAM | Identity management |
-| CloudFormation | Infrastructure as code |
+### Compute
 
-## Useful Commands
+| Service | Description | Use Case | Pricing Model |
+|---------|-------------|----------|---------------|
+| **EC2** | Virtual servers in the cloud | General-purpose computing, custom applications | Per hour/second |
+| **Lambda** | Serverless compute | Event-driven, microservices, API backends | Per request + duration |
+| **ECS** | Container orchestration | Docker containers, microservices | EC2 or Fargate pricing |
+| **EKS** | Managed Kubernetes | Kubernetes workloads | $0.10/hour + worker nodes |
+| **Fargate** | Serverless containers | Containers without managing servers | Per vCPU + memory |
+| **Elastic Beanstalk** | Platform as a Service | Quick deployments, web apps | No additional charge |
+| **Batch** | Batch processing | Large-scale data processing | EC2 pricing |
 
-```bash
-# Get account ID
-aws sts get-caller-identity
+### Storage
 
-# List all regions
-aws ec2 describe-regions --output table
+| Service | Description | Use Case | Pricing Model |
+|---------|-------------|----------|---------------|
+| **S3** | Object storage | Static assets, data lakes, backups | Per GB stored + requests |
+| **EBS** | Block storage for EC2 | Database storage, file systems | Per GB provisioned |
+| **EFS** | Elastic file system | Shared file storage | Per GB used |
+| **Glacier** | Archive storage | Long-term backups, compliance | Very low per GB |
+| **Storage Gateway** | Hybrid cloud storage | On-premises to cloud | Gateway + storage costs |
+| **FSx** | Fully managed file systems | Windows/Lustre file systems | Per GB + throughput |
 
-# Find latest AMI
-aws ec2 describe-images \
-  --owners amazon \
-  --filters "Name=name,Values=amzn2-ami-hvm-*-x86_64-gp2" \
-  --query 'sort_by(Images, &CreationDate)[-1].ImageId'
+### Database
 
-# Cost estimate
-aws ce get-cost-and-usage \
-  --time-period Start=2025-01-01,End=2025-01-31 \
-  --granularity MONTHLY \
-  --metrics BlendedCost
-```
+| Service | Description | Use Case | Pricing Model |
+|---------|-------------|----------|---------------|
+| **RDS** | Managed relational databases | PostgreSQL, MySQL, Oracle, SQL Server | Instance hours + storage |
+| **DynamoDB** | NoSQL database | High-scale applications, gaming, IoT | Per read/write unit |
+| **Aurora** | High-performance RDS | Mission-critical apps | Instance hours + I/O |
+| **ElastiCache** | In-memory caching | Redis/Memcached caching | Node hours |
+| **DocumentDB** | MongoDB-compatible | Document database workloads | Instance hours |
+| **Neptune** | Graph database | Social networks, recommendations | Instance hours |
+| **Redshift** | Data warehouse | Analytics, BI | Node hours |
+
+### Networking & Content Delivery
+
+| Service | Description | Use Case | Pricing Model |
+|---------|-------------|----------|---------------|
+| **VPC** | Virtual private cloud | Network isolation | No charge (resources charged) |
+| **Route 53** | DNS service | Domain management, traffic routing | Per hosted zone + queries |
+| **CloudFront** | CDN | Global content delivery | Per GB transferred |
+| **ELB** | Load balancing | Traffic distribution (ALB, NLB, CLB) | Per hour + data processed |
+| **API Gateway** | API management | RESTful/WebSocket APIs | Per million requests |
+| **Direct Connect** | Dedicated network connection | Hybrid cloud, high throughput | Port hours + data transfer |
+| **PrivateLink** | Private connectivity | Secure service access | Per endpoint hour + data |
+
+### Security & Identity
+
+| Service | Description | Use Case | Pricing Model |
+|---------|-------------|----------|---------------|
+| **IAM** | Identity management | User/role management | Free |
+| **KMS** | Key management | Encryption keys | Per key + requests |
+| **Secrets Manager** | Secrets storage | API keys, passwords | Per secret per month |
+| **WAF** | Web application firewall | DDoS, SQL injection protection | Per rule + requests |
+| **Shield** | DDoS protection | DDoS mitigation | Standard free, Advanced paid |
+| **GuardDuty** | Threat detection | Security monitoring | Per GB analyzed |
+| **Security Hub** | Security posture | Centralized security findings | Per check per account |
+
+### Monitoring & Management
+
+| Service | Description | Use Case | Pricing Model |
+|---------|-------------|----------|---------------|
+| **CloudWatch** | Monitoring and observability | Metrics, logs, alarms | Per metric + log ingestion |
+| **CloudTrail** | Audit logging | API activity tracking | Per event delivered |
+| **X-Ray** | Distributed tracing | Application performance | Per trace recorded |
+| **Systems Manager** | Operations management | Patch management, automation | Free (some features charged) |
+| **Config** | Resource compliance | Configuration tracking | Per item + rule |
+| **Trusted Advisor** | Best practice recommendations | Cost, security optimization | Free tier + Business support |
+
+### Analytics & Big Data
+
+| Service | Description | Use Case | Pricing Model |
+|---------|-------------|----------|---------------|
+| **Kinesis** | Real-time data streaming | Log processing, analytics | Per shard hour + data |
+| **EMR** | Big data processing | Hadoop, Spark clusters | EC2 instances + EMR cost |
+| **Athena** | Serverless query service | S3 data queries | Per TB scanned |
+| **Glue** | ETL service | Data preparation | Per DPU hour |
+| **QuickSight** | Business intelligence | Dashboards, visualizations | Per user per month |
+| **OpenSearch** | Search and analytics | Log analytics, full-text search | Instance hours |
+
+### Developer Tools
+
+| Service | Description | Use Case | Pricing Model |
+|---------|-------------|----------|---------------|
+| **CodeCommit** | Git repositories | Source control | Per active user |
+| **CodeBuild** | Build service | CI/CD builds | Per build minute |
+| **CodeDeploy** | Deployment automation | Application deployment | Free for EC2/Lambda |
+| **CodePipeline** | CI/CD orchestration | Release automation | Per active pipeline |
+| **Cloud9** | Cloud IDE | Development environment | Free (EC2 costs apply) |
+| **CloudFormation** | Infrastructure as Code | Resource provisioning | Free (resources charged) |
+
+### Machine Learning & AI
+
+| Service | Description | Use Case | Pricing Model |
+|---------|-------------|----------|---------------|
+| **SageMaker** | ML platform | Training and deploying models | Instance hours |
+| **Rekognition** | Image/video analysis | Facial recognition, content moderation | Per image analyzed |
+| **Comprehend** | Natural language processing | Sentiment analysis, entity extraction | Per unit of text |
+| **Translate** | Text translation | Multi-language translation | Per character |
+| **Polly** | Text-to-speech | Voice generation | Per character |
+| **Lex** | Conversational AI | Chatbots | Per request |
 
 ## Tags
 
-`aws`, `cloud`, `devops`, `infrastructure`, `amazon`
+`aws`, `cloud`, `devops`, `infrastructure`, `amazon`, `architecture`, `best-practices`
 
 ---
 
-*Last updated: 2025-10-30*
+*Last updated: 2025-10-31*
