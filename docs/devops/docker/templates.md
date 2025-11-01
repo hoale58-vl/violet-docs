@@ -1,13 +1,14 @@
-# ITemplates
+# Templates
 
 Production-ready Dockerfile templates for common application stacks.
 
-## Quick Start
+## Available Templates
 
-1. Copy the template for your stack
-2. Adjust environment variables and build arguments as needed
-3. Create the corresponding `.dockerignore` file
-4. Build and test locally before deploying
+- [Next.js SSR Application](#nextjs-ssr-application)
+- [Express.js Application](#expressjs-application)
+- [Rust Application](#rust-application)
+- [Go Application](#go-application)
+- [Docker Compose Examples](#docker-compose)
 
 ---
 
@@ -111,22 +112,6 @@ dist
 build
 ```
 
-### Build & Run
-
-```bash
-# Build
-docker build -t nextjs-app .
-
-# Run
-docker run -p 3000:3000 nextjs-app
-
-# With environment variables
-docker run -p 3000:3000 \
-  -e DATABASE_URL="postgresql://..." \
-  -e NEXT_PUBLIC_API_URL="https://api.example.com" \
-  nextjs-app
-```
-
 ---
 
 ## Express.js Application
@@ -197,44 +182,6 @@ ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "dist/server.js"]
 ```
 
-### For JavaScript (non-TypeScript)
-
-If not using TypeScript, simplify to:
-
-```dockerfile
-# syntax=docker/dockerfile:1
-
-FROM node:20-alpine AS deps
-WORKDIR /app
-
-COPY package.json package-lock.json* ./
-RUN npm ci --only=production
-
-FROM node:20-alpine AS runner
-WORKDIR /app
-
-ENV NODE_ENV production
-
-RUN apk add --no-cache dumb-init
-
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 expressjs
-
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-
-RUN chown -R expressjs:nodejs /app
-
-USER expressjs
-
-EXPOSE 3000
-
-ENV PORT 3000
-
-ENTRYPOINT ["dumb-init", "--"]
-CMD ["node", "src/server.js"]
-```
-
 ### .dockerignore
 
 ```
@@ -278,68 +225,9 @@ docker run -p 3000:3000 \
 
 ## Rust Application
 
-Multi-stage Dockerfile optimized for Rust binaries with minimal final image.
+Multi-stage Dockerfile optimized for Rust binaries with minimal final image  (Actix Web / Rocket).
 
 ### Dockerfile
-
-```dockerfile
-# syntax=docker/dockerfile:1
-
-# Stage 1: Build
-FROM rust:1.75-alpine AS builder
-
-# Install build dependencies
-RUN apk add --no-cache musl-dev pkgconfig openssl-dev
-
-WORKDIR /app
-
-# Copy manifests
-COPY Cargo.toml Cargo.lock ./
-
-# Create a dummy main.rs to cache dependencies
-RUN mkdir src && \
-    echo "fn main() {}" > src/main.rs && \
-    cargo build --release && \
-    rm -rf src
-
-# Copy source code
-COPY src ./src
-
-# Build for release (invalidates dummy cache)
-RUN touch src/main.rs && \
-    cargo build --release --locked
-
-# Stage 2: Runtime
-FROM alpine:3.19 AS runtime
-
-# Install runtime dependencies
-RUN apk add --no-cache ca-certificates libgcc
-
-# Create non-root user
-RUN addgroup -g 1001 -S appuser && \
-    adduser -u 1001 -S appuser -G appuser
-
-WORKDIR /app
-
-# Copy binary from builder
-COPY --from=builder /app/target/release/myapp /app/myapp
-
-# Set ownership
-RUN chown -R appuser:appuser /app
-
-USER appuser
-
-EXPOSE 8080
-
-ENV RUST_LOG=info
-ENV PORT=8080
-
-CMD ["/app/myapp"]
-```
-
-### For Actix Web / Rocket
-
-If using a web framework:
 
 ```dockerfile
 # syntax=docker/dockerfile:1
@@ -413,124 +301,13 @@ Dockerfile
 .dockerignore
 ```
 
-### Build & Run
-
-```bash
-# Build
-docker build -t rust-app .
-
-# Run
-docker run -p 8080:8080 rust-app
-
-# With environment variables
-docker run -p 8080:8080 \
-  -e DATABASE_URL="postgresql://..." \
-  -e RUST_LOG=debug \
-  rust-app
-```
-
 ---
 
 ## Go Application
 
-Minimal Dockerfile for Go applications using scratch base image.
+Minimal Dockerfile for Go applications using scratch base image  (Fiber / Gin / Echo Web Frameworks).
 
 ### Dockerfile
-
-```dockerfile
-# syntax=docker/dockerfile:1
-
-# Stage 1: Build
-FROM golang:1.21-alpine AS builder
-
-# Install build dependencies
-RUN apk add --no-cache git ca-certificates tzdata
-
-WORKDIR /app
-
-# Copy go mod files
-COPY go.mod go.sum ./
-RUN go mod download
-RUN go mod verify
-
-# Copy source code
-COPY . .
-
-# Build the binary
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-    -ldflags='-w -s -extldflags "-static"' \
-    -a -installsuffix cgo \
-    -o /app/server \
-    ./cmd/server
-
-# Stage 2: Runtime (scratch)
-FROM scratch
-
-# Copy CA certificates for HTTPS
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-
-# Copy timezone data
-COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
-
-# Copy the binary
-COPY --from=builder /app/server /server
-
-# Copy static files if needed
-# COPY --from=builder /app/static /static
-
-EXPOSE 8080
-
-ENV PORT=8080
-
-ENTRYPOINT ["/server"]
-```
-
-### With Alpine Runtime (if you need shell access)
-
-```dockerfile
-# syntax=docker/dockerfile:1
-
-FROM golang:1.21-alpine AS builder
-
-RUN apk add --no-cache git ca-certificates tzdata
-
-WORKDIR /app
-
-COPY go.mod go.sum ./
-RUN go mod download
-RUN go mod verify
-
-COPY . .
-
-RUN CGO_ENABLED=0 GOOS=linux go build \
-    -ldflags='-w -s' \
-    -o /app/server \
-    ./cmd/server
-
-# Runtime stage
-FROM alpine:3.19
-
-RUN apk add --no-cache ca-certificates tzdata
-
-RUN addgroup -g 1001 -S appuser && \
-    adduser -u 1001 -S appuser -G appuser
-
-WORKDIR /app
-
-COPY --from=builder /app/server /app/server
-
-RUN chown -R appuser:appuser /app
-
-USER appuser
-
-EXPOSE 8080
-
-ENV PORT=8080
-
-CMD ["/app/server"]
-```
-
-### For Fiber / Gin / Echo Web Frameworks
 
 ```dockerfile
 # syntax=docker/dockerfile:1
@@ -609,48 +386,15 @@ vendor
 tmp
 ```
 
-### Build & Run
-
-```bash
-# Build
-docker build -t go-api .
-
-# Run
-docker run -p 8080:8080 go-api
-
-# With environment variables
-docker run -p 8080:8080 \
-  -e DATABASE_URL="postgresql://..." \
-  -e REDIS_URL="redis://..." \
-  -e JWT_SECRET="your-secret" \
-  go-api
-```
-
 ---
 
-## Docker Compose Examples
-
-### Next.js with PostgreSQL
+## Docker Compose
 
 ```yaml
 version: '3.8'
 
 services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    environment:
-      - DATABASE_URL=postgresql://postgres:password@db:5432/myapp
-      - NODE_ENV=production
-    depends_on:
-      db:
-        condition: service_healthy
-    restart: unless-stopped
-
-  db:
+  psql:
     image: postgres:16-alpine
     environment:
       - POSTGRES_USER=postgres
@@ -664,49 +408,6 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
-
-volumes:
-  postgres_data:
-```
-
-### Express.js with Redis and PostgreSQL
-
-```yaml
-version: '3.8'
-
-services:
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    environment:
-      - DATABASE_URL=postgresql://postgres:password@db:5432/myapp
-      - REDIS_URL=redis://redis:6379
-      - NODE_ENV=production
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-
-  db:
-    image: postgres:16-alpine
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=myapp
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-
   redis:
     image: redis:7-alpine
     volumes:
@@ -723,60 +424,7 @@ volumes:
   redis_data:
 ```
 
-### Go API with PostgreSQL
-
-```yaml
-version: '3.8'
-
-services:
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: runtime
-    ports:
-      - "8080:8080"
-    environment:
-      - DATABASE_URL=postgresql://postgres:password@db:5432/myapp
-      - PORT=8080
-    depends_on:
-      db:
-        condition: service_healthy
-    restart: unless-stopped
-
-  db:
-    image: postgres:16-alpine
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=myapp
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-
-volumes:
-  postgres_data:
-```
-
 ---
-
-## Best Practices Applied
-
-All templates follow these Docker best practices:
-
-1. **Multi-stage Builds**: Separate build and runtime stages for smaller images
-2. **Non-root Users**: All containers run as non-root users for security
-3. **Minimal Base Images**: Using Alpine or scratch for smallest footprint
-4. **Layer Caching**: Dependencies installed before source code for better caching
-5. **Security**: No secrets in images, minimal attack surface
-6. **Health Checks**: Proper signal handling with dumb-init or native support
-7. **.dockerignore**: Exclude unnecessary files from build context
-8. **Production-ready**: Environment variables, proper logging, graceful shutdown
 
 ## Tags
 
