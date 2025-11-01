@@ -2,20 +2,50 @@
 
 Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 
+## Quick Reference Table
+
+| Action                                                                            | Repository                                                         | Purpose                      |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------- |
+| 📦 [actions/checkout](#actionscheckout)                                           | [GitHub](https://github.com/actions/checkout)                      | Clone repository code        |
+| ⚙️ [actions/setup-node](#actionssetup-node)                                       | [GitHub](https://github.com/actions/setup-node)                    | Setup Node.js environment    |
+| 💾 [actions/cache](#actionscache)                                                 | [GitHub](https://github.com/actions/cache)                         | Cache dependencies for speed |
+| 📤 [actions/upload-artifact](#actionsupload-artifact)                             | [GitHub](https://github.com/actions/upload-artifact)               | Upload build artifacts       |
+| 📥 [actions/download-artifact](#actionsdownload-artifact)                         | [GitHub](https://github.com/actions/download-artifact)             | Download artifacts           |
+| 🐳 [docker/build-push-action](#dockerbuild-push-action)                           | [GitHub](https://github.com/docker/build-push-action)              | Build and push Docker images |
+| 🔑 [docker/login-action](#dockerlogin-action)                                     | [GitHub](https://github.com/docker/login-action)                   | Login to Docker registry     |
+| 🛠️ [docker/setup-buildx-action](#dockersetup-buildx-action)                       | [GitHub](https://github.com/docker/setup-buildx-action)            | Setup Docker Buildx          |
+| ☁️ [aws-actions/configure-aws-credentials](#aws-actionsconfigure-aws-credentials) | [GitHub](https://github.com/aws-actions/configure-aws-credentials) | Configure AWS credentials    |
+| ☁️ [google-github-actions/auth](#google-github-actionsauth)                       | [GitHub](https://github.com/google-github-actions/auth)            | Authenticate to GCP          |
+| ☁️ [azure/login](#azurelogin)                                                     | [GitHub](https://github.com/Azure/login)                           | Azure authentication         |
+| 🔍 [github/codeql-action](#githubcodeql-action)                                   | [GitHub](https://github.com/github/codeql-action)                  | CodeQL security analysis     |
+| 🛡️ [aquasecurity/trivy-action](#aquasecuritytrivy-action)                         | [GitHub](https://github.com/aquasecurity/trivy-action)             | Vulnerability scanning       |
+| 🛡️ [snyk/actions](#snykactions)                                                   | [GitHub](https://github.com/snyk/actions)                          | Snyk security scanning       |
+| ✅ [cypress-io/github-action](#cypress-iogithub-action)                           | [GitHub](https://github.com/cypress-io/github-action)              | Run Cypress E2E tests        |
+| ✅ [microsoft/playwright-github-action](#microsoftplaywright-github-action)       | [GitHub](https://github.com/microsoft/playwright-github-action)    | Run Playwright tests         |
+| 📊 [codecov/codecov-action](#codecovcodecov-action)                               | [GitHub](https://github.com/codecov/codecov-action)                | Upload coverage reports      |
+| 🚀 [softprops/action-gh-release](#softpropsaction-gh-release)                     | [GitHub](https://github.com/softprops/action-gh-release)           | Create GitHub releases       |
+| 🌐 [peaceiris/actions-gh-pages](#peaceirisc/actions-gh-pages)                     | [GitHub](https://github.com/peaceiris/actions-gh-pages)            | Deploy to GitHub Pages       |
+| 🔧 [actions/github-script](#actionsgithub-script)                                 | [GitHub](https://github.com/actions/github-script)                 | Run JavaScript/GitHub API    |
+| 🔄 [peter-evans/create-pull-request](#peter-evanscreate-pull-request)             | [GitHub](https://github.com/peter-evans/create-pull-request)       | Create automated PRs         |
+| 💬 [8398a7/action-slack](#8398a7action-slack)                                     | [GitHub](https://github.com/8398a7/action-slack)                   | Send Slack notifications     |
+| 🐛 [mxschmitt/action-tmate](#mxschmittaction-tmate)                               | [GitHub](https://github.com/mxschmitt/action-tmate)                | Interactive debugging        |
+
 ## Essential Actions (Must-Have)
 
 ### actions/checkout
+
 **Check out repository code**
 
 ```yaml
 - uses: actions/checkout@v4
   with:
-    fetch-depth: 0  # Fetch all history for all branches and tags
-    submodules: recursive  # Checkout submodules
-    token: ${{ secrets.GITHUB_TOKEN }}  # Use custom token if needed
+    fetch-depth: 0 # Fetch all history for all branches and tags
+    submodules: recursive # Checkout submodules
+    token: ${{ secrets.GITHUB_TOKEN }} # Use custom token if needed
 ```
 
 **Use cases:**
+
 - Required for accessing repository files
 - Needed in almost every workflow
 
@@ -24,23 +54,26 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ---
 
 ### actions/setup-node
+
 **Set up Node.js environment**
 
 ```yaml
 - uses: actions/setup-node@v4
   with:
-    node-version: '18'
-    cache: 'npm'  # or 'yarn', 'pnpm'
-    registry-url: 'https://registry.npmjs.org'
+    node-version: "18"
+    cache: "npm" # or 'yarn', 'pnpm'
+    registry-url: "https://registry.npmjs.org"
 ```
 
 **Use cases:**
+
 - JavaScript/TypeScript projects
 - Frontend and backend development
 
 **Repository:** [actions/setup-node](https://github.com/actions/setup-node)
 
 **Similar actions:**
+
 - `actions/setup-python@v5` - Python
 - `actions/setup-go@v5` - Go
 - `actions/setup-java@v4` - Java
@@ -49,6 +82,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ---
 
 ### actions/cache
+
 **Cache dependencies and build outputs**
 
 ```yaml
@@ -63,6 +97,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ```
 
 **Use cases:**
+
 - Speed up workflow by caching dependencies
 - Reduce build times
 
@@ -71,6 +106,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ---
 
 ### actions/upload-artifact
+
 **Upload build artifacts**
 
 ```yaml
@@ -83,6 +119,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ```
 
 **Use cases:**
+
 - Share files between jobs
 - Store build outputs
 - Preserve test results
@@ -92,6 +129,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ---
 
 ### actions/download-artifact
+
 **Download artifacts from previous jobs**
 
 ```yaml
@@ -102,6 +140,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ```
 
 **Use cases:**
+
 - Access artifacts from previous jobs
 - Deploy pre-built applications
 
@@ -112,6 +151,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ## Docker & Containers
 
 ### docker/login-action
+
 **Log in to Docker registry**
 
 ```yaml
@@ -123,6 +163,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ```
 
 **Supported registries:**
+
 - Docker Hub
 - GitHub Container Registry (ghcr.io)
 - AWS ECR
@@ -134,6 +175,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ---
 
 ### docker/build-push-action
+
 **Build and push Docker images**
 
 ```yaml
@@ -152,6 +194,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ---
 
 ### docker/setup-buildx-action
+
 **Set up Docker Buildx**
 
 ```yaml
@@ -159,6 +202,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ```
 
 **Use cases:**
+
 - Multi-platform builds
 - Advanced build features
 
@@ -167,6 +211,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ---
 
 ### docker/metadata-action
+
 **Extract metadata for Docker images**
 
 ```yaml
@@ -189,6 +234,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ## Cloud Providers
 
 ### aws-actions/configure-aws-credentials
+
 **Configure AWS credentials**
 
 ```yaml
@@ -203,6 +249,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ---
 
 ### google-github-actions/auth
+
 **Authenticate to Google Cloud**
 
 ```yaml
@@ -217,6 +264,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ---
 
 ### azure/login
+
 **Azure login**
 
 ```yaml
@@ -232,6 +280,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ## Code Quality & Security
 
 ### github/codeql-action
+
 **Run CodeQL analysis**
 
 ```yaml
@@ -243,6 +292,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ```
 
 **Use cases:**
+
 - Security scanning
 - Vulnerability detection
 - Code quality analysis
@@ -252,18 +302,20 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ---
 
 ### aquasecurity/trivy-action
+
 **Scan for vulnerabilities**
 
 ```yaml
 - uses: aquasecurity/trivy-action@master
   with:
-    scan-type: 'fs'
-    scan-ref: '.'
-    format: 'sarif'
-    output: 'trivy-results.sarif'
+    scan-type: "fs"
+    scan-ref: "."
+    format: "sarif"
+    output: "trivy-results.sarif"
 ```
 
 **Scan types:**
+
 - Filesystem
 - Container images
 - Git repositories
@@ -274,6 +326,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ---
 
 ### snyk/actions
+
 **Snyk security scanning**
 
 ```yaml
@@ -287,6 +340,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ---
 
 ### golangci/golangci-lint-action
+
 **Go linting**
 
 ```yaml
@@ -303,13 +357,14 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ## Testing
 
 ### cypress-io/github-action
+
 **Run Cypress tests**
 
 ```yaml
 - uses: cypress-io/github-action@v6
   with:
     start: npm start
-    wait-on: 'http://localhost:3000'
+    wait-on: "http://localhost:3000"
     browser: chrome
 ```
 
@@ -318,6 +373,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ---
 
 ### microsoft/playwright-github-action
+
 **Run Playwright tests**
 
 ```yaml
@@ -332,6 +388,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ---
 
 ### codecov/codecov-action
+
 **Upload coverage reports**
 
 ```yaml
@@ -349,6 +406,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ## Deployment & Release
 
 ### softprops/action-gh-release
+
 **Create GitHub releases**
 
 ```yaml
@@ -367,6 +425,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ---
 
 ### peaceiris/actions-gh-pages
+
 **Deploy to GitHub Pages**
 
 ```yaml
@@ -382,6 +441,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ---
 
 ### JamesIves/github-pages-deploy-action
+
 **Alternative GitHub Pages deployment**
 
 ```yaml
@@ -398,6 +458,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ## Utilities
 
 ### actions/github-script
+
 **Run JavaScript in workflows**
 
 ```yaml
@@ -414,6 +475,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ```
 
 **Use cases:**
+
 - GitHub API interactions
 - Complex workflow logic
 - Custom automations
@@ -423,6 +485,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ---
 
 ### dawidd6/action-download-artifact
+
 **Download artifacts from other workflows**
 
 ```yaml
@@ -437,13 +500,14 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ---
 
 ### peter-evans/create-pull-request
+
 **Create pull requests automatically**
 
 ```yaml
 - uses: peter-evans/create-pull-request@v5
   with:
     commit-message: Update dependencies
-    title: 'chore: update dependencies'
+    title: "chore: update dependencies"
     body: Automated dependency updates
     branch: update-deps
 ```
@@ -453,13 +517,14 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ---
 
 ### actions/stale
+
 **Mark and close stale issues/PRs**
 
 ```yaml
 - uses: actions/stale@v8
   with:
-    stale-issue-message: 'This issue is stale'
-    stale-pr-message: 'This PR is stale'
+    stale-issue-message: "This issue is stale"
+    stale-pr-message: "This PR is stale"
     days-before-stale: 30
     days-before-close: 7
 ```
@@ -471,6 +536,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ## Notifications
 
 ### 8398a7/action-slack
+
 **Send Slack notifications**
 
 ```yaml
@@ -487,6 +553,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ---
 
 ### dawidd6/action-send-mail
+
 **Send email notifications**
 
 ```yaml
@@ -508,6 +575,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ## Signing & Security
 
 ### sigstore/cosign-installer
+
 **Install cosign for container signing**
 
 ```yaml
@@ -525,6 +593,7 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ## Debugging
 
 ### mxschmitt/action-tmate
+
 **Debug workflows interactively**
 
 ```yaml
@@ -534,33 +603,13 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 ```
 
 **Use cases:**
+
 - Interactive debugging
 - Troubleshooting failed workflows
 
 **Repository:** [mxschmitt/action-tmate](https://github.com/mxschmitt/action-tmate)
 
 ---
-
-## Summary Table
-
-| Category | Action | Purpose |
-|----------|--------|---------|
-| **Essential** | `actions/checkout` | Clone repository |
-| **Essential** | `actions/setup-node` | Setup Node.js |
-| **Essential** | `actions/cache` | Cache dependencies |
-| **Essential** | `actions/upload-artifact` | Upload artifacts |
-| **Docker** | `docker/build-push-action` | Build/push images |
-| **Docker** | `docker/login-action` | Registry login |
-| **Cloud** | `aws-actions/configure-aws-credentials` | AWS authentication |
-| **Cloud** | `google-github-actions/auth` | GCP authentication |
-| **Security** | `aquasecurity/trivy-action` | Vulnerability scanning |
-| **Security** | `github/codeql-action` | Code analysis |
-| **Testing** | `cypress-io/github-action` | E2E testing |
-| **Testing** | `codecov/codecov-action` | Coverage reports |
-| **Release** | `softprops/action-gh-release` | Create releases |
-| **Deploy** | `peaceiris/actions-gh-pages` | GitHub Pages |
-| **Utility** | `actions/github-script` | GitHub API access |
-| **Utility** | `peter-evans/create-pull-request` | Auto PRs |
 
 ## Finding More Actions
 
@@ -574,4 +623,4 @@ Essential and commonly used GitHub Actions for building robust CI/CD pipelines.
 
 ---
 
-*Last updated: 2025-10-30*
+_Last updated: 2025-10-30_

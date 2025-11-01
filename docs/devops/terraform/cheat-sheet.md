@@ -1,4 +1,4 @@
-# Terraform CLI Cheat Sheet
+# CheatsSheet
 
 Quick reference for the most commonly used Terraform commands.
 
