@@ -212,14 +212,11 @@ jobs:
         continue-on-error: true
         with:
           image-ref: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.CURRENT_SERVICE }}/${{ env.CURRENT_SERVICE }}@${{ steps.build.outputs.digest }}
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-
-      - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v4.31.2
-        if: always()
-        with:
-          sarif_file: 'trivy-results.sarif'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
 
       - name: Apply to K8S
         if: github.event_name == 'push' && steps.meta.outputs.tags == 'staging'
@@ -237,7 +234,9 @@ name: Test and Lint
 
 on:
   push:
-    branches: [main, develop]
+    branches:
+      - staging
+      - prod
     paths:
       - 'src/**'
       - 'tests/**'
@@ -246,7 +245,9 @@ on:
       - '.eslintrc*'
       - '.github/workflows/**'
   pull_request:
-    branches: [main, develop]
+    branches:
+      - staging
+      - prod
 
 # Cancel in-progress runs for the same branch
 concurrency:
@@ -263,16 +264,16 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+      - uses: actions/checkout@v5.0.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8  # v4.0.2
+        uses: actions/setup-node@v6.0.0
         with:
           node-version: '18'
           cache: 'npm'
 
       - name: Cache dependencies
-        uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9  # v4.0.2
+        uses: actions/cache@v4.3.0
         with:
           path: node_modules
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
@@ -295,119 +296,51 @@ jobs:
         run: npm run type-check
 
   test:
-    name: Test - Node ${{ matrix.node }}
+    name: Test
     runs-on: ubuntu-latest
     timeout-minutes: 20
-
     permissions:
       contents: read
 
-    strategy:
-      fail-fast: false
-      matrix:
-        node: [18, 20]
-
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+      - uses: actions/checkout@v5.0.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8  # v4.0.2
+        uses: actions/setup-node@v6.0.0
         with:
-          node-version: ${{ matrix.node }}
+          node-version: '18'
           cache: 'npm'
-
+      
       - name: Cache dependencies
-        uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9  # v4.0.2
+        uses: actions/cache@v4.3.0
         with:
           path: node_modules
-          key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-node-${{ matrix.node }}-
+            ${{ runner.os }}-node-
 
       - name: Install dependencies
         run: npm ci
 
       - name: Run unit tests
         timeout-minutes: 15
-        run: npm test -- --coverage
-
-      - name: Upload coverage to Codecov
-        if: matrix.node == '18'
-        uses: codecov/codecov-action@54bcd8715eee62d40e33596ef5e8f0f48dbbccab  # v4.1.0
-        continue-on-error: true
-        with:
-          files: ./coverage/coverage-final.json
-
-  e2e:
-    name: E2E Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-
-    permissions:
-      contents: read
-
-    steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
-
-      - name: Setup Node.js
-        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8  # v4.0.2
-        with:
-          node-version: '18'
-          cache: 'npm'
-
-      - name: Cache dependencies
-        uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9  # v4.0.2
-        with:
-          path: |
-            node_modules
-            ~/.cache/ms-playwright
-          key: ${{ runner.os }}-e2e-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-e2e-
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps
-
-      - name: Run E2E tests
-        timeout-minutes: 20
-        run: npm run test:e2e
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808  # v4.3.3
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 7
-
-  security:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    permissions:
-      contents: read
-
-    steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
-
-      - name: Setup Node.js
-        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8  # v4.0.2
-        with:
-          node-version: '18'
-
-      - name: Run npm audit
-        continue-on-error: true
-        run: npm audit --audit-level=high
-
-      - name: Run Snyk security scan
-        uses: snyk/actions/node@cdb760004ba9ea4d525f2e043745dfe85bb9077e  # master as of 2024-01
-        continue-on-error: true
+        run: npm test
         env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+          NODE_ENV: test
+          MNEMONIC: 'test test test test test test test test test test test junk'
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+        env:
+          NODE_ENV: test
+          MNEMONIC: 'test test test test test test test test test test test junk'
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
 ```
 
 ---
