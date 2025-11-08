@@ -1,6 +1,27 @@
-# RESTful API Design Best Practices
+# API Design
 
 Guidelines for designing clean and maintainable REST APIs.
+
+## Best Practices Checklist
+
+| # | Best Practice | Reference / Example |
+|:-:|--------------|---------------------|
+| ⬜ | **Use nouns for resource names, not verbs** | [Resource Naming](#resource-naming) - `/users` not `/getUsers` |
+| ⬜ | **Use appropriate HTTP status codes** | [HTTP Status Codes](#http-status-codes) - 200, 201, 400, 404, 500 |
+| ⬜ | **Include version in API URL or headers** | [Versioning](#versioning) - `/api/v1/users` |
+| ⬜ | **Implement pagination for list endpoints** | [Pagination](#pagination) - `?page=1&limit=20` |
+| ⬜ | **Use consistent error response format** | [Error Response Format](#error-response-format) - Include code, message, field |
+| ⬜ | **Support filtering and sorting** | [Filtering and Sorting](#filtering-and-sorting) - `?status=active&sort=-createdAt` |
+| ⬜ | **Implement rate limiting** | [Rate Limiting](#rate-limiting) - Return `X-RateLimit-*` headers |
+| ⬜ | **Configure CORS properly** | [CORS Headers](#cors-headers) - Allow necessary origins and methods |
+| ⬜ | **Document API with OpenAPI/Swagger** | [Documentation](#documentation) - Include examples and error codes |
+| ⬜ | **Use 204 No Content for successful DELETE** | [HTTP Status Codes](#http-status-codes) - No response body needed |
+| ⬜ | **Support field selection** | [Filtering and Sorting](#filtering-and-sorting) - `?fields=id,name,email` |
+| ⬜ | **Use consistent date format (ISO 8601)** | `"2025-10-30T10:00:00Z"` |
+| ⬜ | **Return pagination metadata** | [Pagination](#pagination) - Include total, totalPages, current page |
+| ⬜ | **Use HTTPS in production** | Security requirement - Encrypt all API traffic |
+
+---
 
 ## Resource Naming
 
@@ -36,30 +57,6 @@ Use appropriate status codes:
 | 500  | Internal Server Error | Server error |
 
 ## Request/Response Examples
-
-### Create User
-```http
-POST /api/v1/users
-Content-Type: application/json
-
-{
-  "name": "John Doe",
-  "email": "john@example.com"
-}
-```
-
-Response:
-```http
-HTTP/1.1 201 Created
-Content-Type: application/json
-
-{
-  "id": "123",
-  "name": "John Doe",
-  "email": "john@example.com",
-  "createdAt": "2025-10-30T10:00:00Z"
-}
-```
 
 ### Pagination
 
@@ -114,14 +111,6 @@ GET /api/v1/users?status=active&sort=-createdAt&fields=id,name,email
 - `status=active` - Filter by status
 - `sort=-createdAt` - Sort by createdAt descending (- prefix)
 - `fields=id,name,email` - Return only specified fields
-
-## Authentication
-
-Use Bearer tokens in Authorization header:
-
-```http
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
 
 ## Rate Limiting
 

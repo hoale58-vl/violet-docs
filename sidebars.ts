@@ -18,7 +18,6 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: '🚀 DevOps',
-      link: {type: 'doc', id: 'devops/intro'},
       items: [
         {
           type: 'category',

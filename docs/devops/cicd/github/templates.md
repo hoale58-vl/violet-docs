@@ -219,9 +219,9 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       - name: Apply to K8S
-        if: github.event_name == 'push' && steps.meta.outputs.tags == 'staging'
+        if: github.event_name == 'push' && github.ref_name == 'staging'
         run: |-
-          kubectl rollout restart -n roshambo-${{ steps.meta.outputs.tags }} deploy ${{ env.CURRENT_SERVICE }}
+          kubectl rollout restart -n roshambo-${{ github.ref_name }} deploy ${{ env.CURRENT_SERVICE }}
 
 ```
 
