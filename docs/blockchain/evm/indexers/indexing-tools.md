@@ -1,4 +1,4 @@
-# EVM Indexing Tools
+# Indexing Tools
 
 Comprehensive guide to EVM blockchain indexing tools and platforms for querying, analyzing, and building on blockchain data.
 

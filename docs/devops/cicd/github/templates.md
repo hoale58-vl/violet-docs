@@ -14,7 +14,8 @@ name: Deploy React App to GCS
 on:
   push:
     branches:
-      - main
+      - staging
+      - prod
     paths:
       - 'src/**'
       - 'public/**'
@@ -22,7 +23,8 @@ on:
       - '.github/workflows/**'
   pull_request:
     branches:
-      - main
+      - staging
+      - prod
 
 # Cancel in-progress runs for the same branch
 concurrency:
@@ -34,7 +36,8 @@ env:
   PROJECT_ID: 'violet-project'
   CURRENT_SERVICE: ${{ github.event.repository.name }}
   REGION: us-central1
-  GCS_BUCKET: gs://violet.xyz/
+  STAGING_GCS_BUCKET: gs://staging.violet.xyz/
+  PROD_GCS_BUCKET: gs://prod.violet.xyz/
   NAMESPACE: ${{ github.ref_name }}
 
 jobs:
@@ -96,10 +99,15 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v3.0.1
 
-      - name: Deploy to GCS
-        if: github.event_name == 'push'
+      - name: Deploy to GCS (Staging)
+        if: github.event_name == 'push' && github.ref_name == 'staging'
         run: |
-          gsutil -m rsync -r -d dist/ ${{ env.GCS_BUCKET }}
+          gsutil -m rsync -r -d dist/ ${{ env.STAGING_GCS_BUCKET }}
+      
+      - name: Deploy to GCS (Prod)
+        if: github.event_name == 'push' && github.ref_name == 'prod'
+        run: |
+          gsutil -m rsync -r -d dist/ ${{ env.PROD_GCS_BUCKET }}
 
       - name: Cleanup on failure
         if: failure()
@@ -344,6 +352,296 @@ jobs:
 ```
 
 ---
+
+## Rust Project Build and Deploy
+
+### GitHub Actions Workflow
+
+```yaml
+name: Build and Push Rust Docker Image
+
+on:
+  push:
+    branches:
+      - prod
+      - staging
+    tags: ['v*']
+    paths:
+      - 'src/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - '.github/workflows/**'
+  pull_request:
+    branches:
+      - prod
+      - staging
+
+# Cancel in-progress runs for the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CURRENT_SERVICE: ${{ github.event.repository.name }}
+  PROJECT_ID: fewcha-450202
+  REGION: us-central1
+  RUST_VERSION: '1.83'
+  APP_NAME: indexer
+  GKE_CLUSTER: fewcha-gke
+
+jobs:
+  build-and-push:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    permissions:
+      contents: read
+      id-token: write
+      security-events: write
+
+    strategy:
+      matrix:
+        include:
+          - platform: linux/amd64
+            target: x86_64-unknown-linux-musl
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5.0.0
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          targets: ${{ matrix.target }}
+
+      - name: Install cross-compilation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4.3.0
+        with:
+          path: ~/.cargo/registry/index
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.target }}-cargo-registry-
+
+      - name: Cache cargo git
+        uses: actions/cache@v4.3.0
+        with:
+          path: ~/.cargo/git/db
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.target }}-cargo-git-
+
+      - name: Cache cargo build
+        uses: actions/cache@v4.3.0
+        with:
+          path: target
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.target }}-cargo-build-
+
+      - name: Build Rust binary
+        timeout-minutes: 25
+        run: |
+          cargo build --release --target ${{ matrix.target }} --locked
+        env:
+          RUSTFLAGS: '-C target-feature=+crt-static'
+
+      - name: Strip binary
+        run: |
+          strip target/${{ matrix.target }}/release/${{ env.APP_NAME }}
+
+      - name: Prepare binary for Docker
+        run: |
+          mkdir -p ./docker-context
+          cp target/${{ matrix.target }}/release/${{ env.APP_NAME }} ./docker-context/app
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3.11.1
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5.8.0
+        with:
+          images: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.CURRENT_SERVICE }}/${{ env.CURRENT_SERVICE }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        id: auth
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          workload_identity_provider: 'projects/624428081092/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions-provider'
+          service_account: 'github-actions-sa@${{ env.PROJECT_ID }}.iam.gserviceaccount.com'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3.0.1
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build and push Docker image
+        id: build
+        timeout-minutes: 15
+        uses: docker/build-push-action@v6.18.0
+        with:
+          context: ./docker-context
+          file: ./Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.CURRENT_SERVICE }}/${{ env.CURRENT_SERVICE }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.CURRENT_SERVICE }}/${{ env.CURRENT_SERVICE }}:buildcache,mode=max
+          platforms: linux/amd64
+
+      - name: Install cosign
+        if: github.event_name != 'pull_request'
+        uses: sigstore/cosign-installer@v4.0.0
+
+      - name: Sign the images with cosign
+        if: github.event_name != 'pull_request'
+        env:
+          COSIGN_EXPERIMENTAL: 'true'
+        run: |
+          cosign sign --yes ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.CURRENT_SERVICE }}/${{ env.CURRENT_SERVICE }}@${{ github.ref_name }}
+
+      - name: Run Trivy security scan
+        uses: aquasecurity/trivy-action@0.33.1
+        continue-on-error: true
+        with:
+          image-ref: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.CURRENT_SERVICE }}/${{ env.CURRENT_SERVICE }}@${{ github.ref_name }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Get GKE credential
+        uses: 'google-github-actions/get-gke-credentials@v2'
+        with:
+          cluster_name: ${{ env.GKE_CLUSTER }}
+          location: ${{ env.REGION }}
+
+      - name: Deploy to Kubernetes
+        run:
+          kubectl rollout restart -n lynox-${{ github.ref_name }} deploy ${{ env.CURRENT_SERVICE }}
+```
+
+### Lightweight Dockerfile (Pre-built Binary)
+
+```dockerfile
+# syntax=docker/dockerfile:1.4
+
+# ============================================
+# Runtime image with Debian (includes shell)
+# ============================================
+FROM debian:bookworm-slim AS runtime
+
+# Create non-root user
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+# Install minimal runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy pre-built binary from GitHub Actions
+COPY app /usr/local/bin/app
+
+# Ensure binary is executable
+RUN chmod +x /usr/local/bin/app
+
+# Set ownership
+RUN chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
+
+# Expose application port
+EXPOSE 8080
+
+# Health check (adjust as needed)
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD ["/usr/local/bin/app", "--health-check"] || exit 1
+
+# Run the application
+ENTRYPOINT ["/usr/local/bin/app"]
+CMD []
+
+# ============================================
+# Distroless runtime (most secure, smallest)
+# ============================================
+FROM gcr.io/distroless/static-debian12:nonroot AS runtime-distroless
+
+WORKDIR /app
+
+# Copy pre-built static binary from GitHub Actions
+COPY app /app/app
+
+# Distroless runs as non-root by default
+USER nonroot:nonroot
+
+# Expose application port
+EXPOSE 8080
+
+# Run the application
+ENTRYPOINT ["/app/app"]
+CMD []
+```
+
+### .dockerignore File
+
+```dockerignore
+# Git
+.git
+.gitignore
+.gitattributes
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.travis.yml
+
+# Rust
+target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Documentation
+*.md
+LICENSE
+docs/
+
+# Tests
+tests/
+benches/
+
+# Development
+.env
+.env.local
+*.log
+tmp/
+temp/
+```
 
 ## Automatic Dependency Updates
 

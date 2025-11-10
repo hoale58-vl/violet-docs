@@ -9,12 +9,11 @@ Guide to designing, building, and deploying microservices with best practices, f
 | ⬜ | **Use API Gateway for client access** | [API Gateway](#api-gateway) - Centralized entry point |
 | ⬜ | **Implement service discovery** | [Service Discovery](#service-discovery) - Consul, Eureka, or K8s DNS |
 | ⬜ | **Use asynchronous messaging** | [Communication Patterns](#communication-patterns) - Event-driven with message brokers |
-| ⬜ | **Implement circuit breakers** | [Resilience Patterns](#circuit-breaker) - Prevent cascading failures |
-| ⬜ | **Implement health checks** | [Health Checks](#health-checks) - `/health` and `/ready` endpoints |
-| ⬜ | **Use database per service** | [Data Management](#database-per-service) - Avoid shared databases |
-| ⬜ | **Implement authentication/authorization** | [Security](#authentication--authorization) - OAuth2, JWT, service mesh |
-| ⬜ | **Implement rate limiting** | [Security](#rate-limiting) - Protect services from overload |
-| ⬜ | **Handle failures gracefully** | [Resilience Patterns](#retry-pattern) - Retry, timeout, fallback |
+| ⬜ | **Implement circuit breakers** | Prevent cascading failures |
+| ⬜ | **Implement health checks** | `/health` and `/ready` endpoints |
+| ⬜ | **Use database per service** | Avoid shared databases |
+| ⬜ | **Implement rate limiting** | Protect services from overload |
+| ⬜ | **Handle failures gracefully** | Retry, timeout, fallback pattern |
 
 ---
 
@@ -109,53 +108,27 @@ flowchart TB
 
 ## Communication Patterns
 
-### Synchronous (REST/gRPC)
+| Pattern | Type | Protocol | Use Cases | Pros | Cons | Best For |
+|---------|------|----------|-----------|------|------|----------|
+| **REST** | Synchronous | HTTP/JSON | • Direct request/response<br/>• Simple CRUD operations<br/>• Real-time operations | ✅ Simple, widely adopted<br/>✅ Easy to debug<br/>✅ Human-readable<br/>✅ Cacheable | ❌ Tight coupling<br/>❌ Latency sensitive<br/>❌ Over/under-fetching data | Simple services, public APIs, traditional web apps |
+| **gRPC** | Synchronous | HTTP/2 + Protobuf | • High-performance RPC<br/>• Streaming data<br/>• Service-to-service calls | ✅ Very fast (binary)<br/>✅ Built-in code generation<br/>✅ Bi-directional streaming<br/>✅ Type-safe | ❌ Harder to debug<br/>❌ Binary format<br/>❌ Limited browser support | Internal microservices, low-latency services, polyglot systems |
+| **GraphQL** | Synchronous | HTTP/JSON | • Complex data queries<br/>• Mobile/web clients<br/>• Aggregated data from multiple services | ✅ Flexible queries<br/>✅ No over-fetching<br/>✅ Single endpoint<br/>✅ Strongly typed | ❌ Complex server setup<br/>❌ Caching challenges<br/>❌ N+1 query problem | BFF (Backend for Frontend), mobile apps, complex UIs |
+| **Message Queue** | Asynchronous | AMQP/Custom | • Task distribution<br/>• Work queues<br/>• Decoupled services | ✅ Reliable delivery<br/>✅ Load leveling<br/>✅ Retry mechanisms<br/>✅ Decoupled | ❌ Eventual consistency<br/>❌ Complex debugging<br/>❌ Message ordering issues | Background jobs, email sending, image processing |
+| **Event Streaming** | Asynchronous | Kafka Protocol | • Event sourcing<br/>• Real-time analytics<br/>• Event-driven architecture | ✅ High throughput<br/>✅ Event replay<br/>✅ Multiple consumers<br/>✅ Scalable | ❌ Complex setup<br/>❌ Eventual consistency<br/>❌ Storage overhead | Activity tracking, log aggregation, real-time analytics |
+| **WebSocket** | Synchronous | WebSocket | • Real-time bidirectional<br/>• Live updates<br/>• Chat, gaming | ✅ Real-time, low latency<br/>✅ Persistent connection<br/>✅ Bidirectional | ❌ Connection management<br/>❌ Scaling challenges<br/>❌ Firewall issues | Chat apps, live dashboards, gaming, real-time collaboration |
 
-**When to use:**
+### Pattern Selection Guide
 
-- Direct request/response needed
-- Real-time operations
-- Simple CRUD operations
-
-**REST Example:**
-
-```javascript
-// User Service calls Order Service
-const orders = await fetch('http://order-service/api/v1/orders?userId=123');
-```
-
-**gRPC Example:**
-
-```protobuf
-// order.proto
-service OrderService {
-  rpc GetOrders (GetOrdersRequest) returns (GetOrdersResponse);
-}
-```
-
-### Asynchronous (Message Broker)
-
-**When to use:**
-
-- Decoupled services
-- Event-driven architecture
-- High throughput
-
-**Event-Driven Example:**
-
-```javascript
-// Order Service publishes event
-await messageQueue.publish('order.created', {
-  orderId: '123',
-  userId: 'user-456',
-  total: 99.99
-});
-
-// Notification Service subscribes
-messageQueue.subscribe('order.created', async (event) => {
-  await sendEmail(event.userId, 'Order Confirmation');
-});
-```
+| Requirement | Recommended Pattern |
+|-------------|---------------------|
+| **Need immediate response** | REST or gRPC |
+| **High performance between services** | gRPC |
+| **Background processing** | Message Queue |
+| **Event sourcing / audit trail** | Event Streaming (Kafka) |
+| **Real-time updates to clients** | WebSocket or Server-Sent Events |
+| **Complex data aggregation** | GraphQL |
+| **Simple public API** | REST |
+| **Decoupled microservices** | Message Queue or Event Streaming |
 
 ---
 
@@ -295,89 +268,6 @@ messageQueue.subscribe('order.created', async (event) => {
 
 ---
 
-## Database Per Service
-
-Each service manages its own database:
-
-```
-Auth Service → PostgreSQL (Relational data)
-User Service → MongoDB (Document store)
-Order Service → PostgreSQL (Transactions)
-Product Service → Elasticsearch (Search)
-Analytics Service → ClickHouse (Time-series)
-Cache Layer → Redis (In-memory)
-```
-
-**Why?**
-
-- ✅ Service independence
-- ✅ Technology flexibility
-- ✅ Easier scaling
-- ⚠️ Distributed transactions complexity
-
----
-
-## Resilience Patterns
-
-### Circuit Breaker
-
-Prevent cascading failures:
-
-```javascript
-const circuitBreaker = require('opossum');
-
-const options = {
-  timeout: 3000,      // Timeout after 3s
-  errorThresholdPercentage: 50,  // Open after 50% errors
-  resetTimeout: 30000  // Try again after 30s
-};
-
-const breaker = circuitBreaker(callExternalService, options);
-
-breaker.fallback(() => ({ error: 'Service unavailable' }));
-
-// Use breaker
-const result = await breaker.fire(params);
-```
-
-### Retry Pattern
-
-Retry failed requests:
-
-```javascript
-const retry = require('async-retry');
-
-await retry(async () => {
-  const response = await fetch('http://external-service/api');
-  if (!response.ok) throw new Error('Request failed');
-  return response.json();
-}, {
-  retries: 3,
-  minTimeout: 1000,
-  maxTimeout: 5000
-});
-```
-
-### Timeout Pattern
-
-Always set timeouts:
-
-```javascript
-const timeout = (promise, ms) => {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Timeout')), ms)
-    )
-  ]);
-};
-
-// Use timeout
-await timeout(fetch('http://slow-service'), 5000);
-```
-
----
-
 ## API Gateway
 
 Centralized entry point for all services:
@@ -393,124 +283,6 @@ Centralized entry point for all services:
 | **Caching** | Cache frequent responses |
 | **Logging** | Centralized request logs |
 | **SSL termination** | Handle HTTPS |
-
-**Example (NGINX):**
-
-```nginx
-upstream user-service {
-  server user-service:3000;
-}
-
-upstream order-service {
-  server order-service:3001;
-}
-
-server {
-  listen 80;
-
-  location /api/v1/users {
-    proxy_pass http://user-service;
-  }
-
-  location /api/v1/orders {
-    proxy_pass http://order-service;
-  }
-}
-```
-
----
-
-## Health Checks
-
-Implement health endpoints:
-
-```javascript
-// Express.js example
-app.get('/health', (req, res) => {
-  res.json({ status: 'UP', timestamp: new Date() });
-});
-
-app.get('/health/ready', async (req, res) => {
-  const checks = await Promise.all([
-    checkDatabase(),
-    checkMessageQueue(),
-    checkCache()
-  ]);
-
-  const isReady = checks.every(check => check.ok);
-  res.status(isReady ? 200 : 503).json({
-    status: isReady ? 'READY' : 'NOT_READY',
-    checks
-  });
-});
-```
-
----
-
-## Security
-
-### Authentication & Authorization
-
-**OAuth2 + JWT:**
-
-```javascript
-// Verify JWT in API Gateway
-const jwt = require('jsonwebtoken');
-
-app.use((req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch (error) {
-    res.status(401).json({ error: 'Unauthorized' });
-  }
-});
-```
-
-### Service Mesh
-
-**Istio/Linkerd benefits:**
-
-- mTLS between services
-- Traffic management
-- Observability
-- Security policies
-
-### Rate Limiting
-
-```javascript
-const rateLimit = require('express-rate-limit');
-
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,  // 15 minutes
-  max: 100  // 100 requests per window
-});
-
-app.use('/api/', limiter);
-```
-
----
-
-## When to Use Microservices
-
-### ✅ Good Fit
-
-- Large, complex applications
-- Multiple development teams
-- Need independent scaling
-- Different technology requirements per component
-- Frequent deployments
-
-### ❌ Not Recommended
-
-- Small applications
-- Single team (< 5 developers)
-- Simple CRUD applications
-- Tight coupling between components
-- Limited operational expertise
 
 ## Tags
 

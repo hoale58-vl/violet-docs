@@ -8,7 +8,7 @@ Complete guide to implementing secure authentication and authorization in modern
 |:-:|--------------|---------------------|
 | ⬜ | **Use HTTPS/TLS for all authentication endpoints** | Encrypt credentials in transit |
 | ⬜ | **Never store passwords in plain text** | [Password Hashing](#password-hashing) - Use bcrypt, Argon2, or scrypt |
-| ⬜ | **Implement rate limiting on auth endpoints** | [Security](#rate-limiting) - Prevent brute force attacks |
+| ⬜ | **Implement rate limiting on auth endpoints** | Prevent brute force attacks |
 | ⬜ | **Validate and sanitize all inputs** | Prevent injection attacks |
 | ⬜ | **Implement Multi-Factor Authentication (MFA)** | [MFA](#multi-factor-authentication-mfa) - Add second factor |
 | ⬜ | **Use role-based access control (RBAC)** | [RBAC](#role-based-access-control-rbac) - Organize permissions |
@@ -44,6 +44,15 @@ flowchart LR
 
 ## Authentication Methods
 
+### Comparison Table
+
+| Method | Use Cases | Pros | Cons | Flow Diagram |
+|--------|-----------|------|------|--------------|
+| **Session-Based** | • Traditional web apps<br/>• Server-side rendered sites<br/>• Monolithic applications<br/>• E-commerce sites | ✅ Server controls sessions (can invalidate immediately)<br/>✅ Less data sent per request<br/>✅ Works well with server-side rendering<br/>✅ Built-in CSRF protection with proper setup | ❌ Not scalable (requires shared session store)<br/>❌ CSRF vulnerable without protection<br/>❌ Doesn't work well with mobile apps<br/>❌ Sticky sessions needed for load balancing | [View Flow](#1-session-based-authentication) |
+| **JWT** | • Single Page Applications (SPAs)<br/>• Mobile applications<br/>• Microservices<br/>• API-first architecture<br/>• Stateless systems | ✅ Stateless (no server storage needed)<br/>✅ Works well with microservices<br/>✅ Excellent for mobile apps<br/>✅ Can include claims (roles, permissions)<br/>✅ Easy to scale horizontally | ❌ Cannot revoke tokens easily (until expiration)<br/>❌ Larger payload than session ID<br/>❌ XSS vulnerable if stored in localStorage<br/>❌ Token size increases with claims | [View Flow](#2-jwt-json-web-tokens) |
+| **OAuth 2.0** | • Third-party login (Google, GitHub)<br/>• API access delegation<br/>• Single Sign-On (SSO)<br/>• Multi-tenant applications<br/>• Partner integrations | ✅ Industry standard protocol<br/>✅ No password handling needed<br/>✅ Fine-grained access scopes<br/>✅ Secure delegation of access<br/>✅ Supports multiple grant types | ❌ Complex to implement correctly<br/>❌ Requires external provider setup<br/>❌ Token management complexity<br/>❌ Multiple redirect flows | [View Flow](#3-oauth-20) |
+| **API Keys** | • Public APIs<br/>• Machine-to-machine auth<br/>• Internal service communication<br/>• Simple integrations<br/>• Developer tools | ✅ Very simple to implement<br/>✅ Good for internal services<br/>✅ Easy to rotate and revoke<br/>✅ No user context needed<br/>✅ Suitable for scripts/automation | ❌ Less secure than OAuth<br/>❌ No fine-grained permissions<br/>❌ Hard to manage at scale<br/>❌ No standard format<br/>❌ Can be leaked in logs/URLs | [View Details](#4-api-keys) |
+
 ### 1. Session-Based Authentication
 
 **How it works:**
@@ -70,60 +79,6 @@ sequenceDiagram
     Server->>Client: Profile data
 ```
 
-**Implementation:**
-
-```javascript
-// Express.js with express-session
-const session = require('express-session');
-const RedisStore = require('connect-redis')(session);
-
-app.use(session({
-  store: new RedisStore({ client: redisClient }),
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: true,      // HTTPS only
-    httpOnly: true,    // Not accessible via JavaScript
-    sameSite: 'strict', // CSRF protection
-    maxAge: 24 * 60 * 60 * 1000  // 24 hours
-  }
-}));
-
-// Login route
-app.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-  const user = await User.findOne({ email });
-
-  if (!user || !await bcrypt.compare(password, user.passwordHash)) {
-    return res.status(401).json({ error: 'Invalid credentials' });
-  }
-
-  req.session.userId = user.id;
-  res.json({ message: 'Logged in successfully' });
-});
-
-// Protected route
-app.get('/profile', (req, res) => {
-  if (!req.session.userId) {
-    return res.status(401).json({ error: 'Not authenticated' });
-  }
-  res.json({ userId: req.session.userId });
-});
-```
-
-**Pros:**
-
-- ✅ Server controls sessions (can invalidate)
-- ✅ Less data sent with each request
-- ✅ Works well with server-side rendering
-
-**Cons:**
-
-- ❌ Not scalable (requires shared session store)
-- ❌ CSRF attacks if not protected
-- ❌ Doesn't work well with mobile apps
-
 ---
 
 ### 2. JWT (JSON Web Tokens)
@@ -149,83 +104,6 @@ sequenceDiagram
     Server->>Server: Verify JWT signature
     Server->>Client: Profile data
 ```
-
-**JWT Structure:**
-
-```
-Header.Payload.Signature
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
-
-Header:  { "alg": "HS256", "typ": "JWT" }
-Payload: { "sub": "1234567890", "name": "John Doe", "iat": 1516239022, "exp": 1516242622 }
-Signature: HMACSHA256(base64UrlEncode(header) + "." + base64UrlEncode(payload), secret)
-```
-
-**Implementation:**
-
-```javascript
-const jwt = require('jsonwebtoken');
-
-// Login route
-app.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-  const user = await User.findOne({ email });
-
-  if (!user || !await bcrypt.compare(password, user.passwordHash)) {
-    return res.status(401).json({ error: 'Invalid credentials' });
-  }
-
-  const token = jwt.sign(
-    { userId: user.id, email: user.email, role: user.role },
-    process.env.JWT_SECRET,
-    { expiresIn: '15m' }
-  );
-
-  const refreshToken = jwt.sign(
-    { userId: user.id },
-    process.env.REFRESH_TOKEN_SECRET,
-    { expiresIn: '7d' }
-  );
-
-  res.json({ token, refreshToken });
-});
-
-// Authentication middleware
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
-
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(403).json({ error: 'Invalid token' });
-    }
-    req.user = user;
-    next();
-  });
-};
-
-// Protected route
-app.get('/profile', authenticateToken, (req, res) => {
-  res.json({ userId: req.user.userId, email: req.user.email });
-});
-```
-
-**Pros:**
-
-- ✅ Stateless (no server-side storage)
-- ✅ Works well with microservices
-- ✅ Good for mobile apps and SPAs
-- ✅ Can include claims (roles, permissions)
-
-**Cons:**
-
-- ❌ Cannot revoke tokens (until expiration)
-- ❌ Larger payload than session ID
-- ❌ XSS vulnerable if stored in localStorage
 
 ---
 
@@ -267,44 +145,6 @@ sequenceDiagram
     ResourceServer->>Client: Protected resource
 ```
 
-**Implementation (Express.js with Passport.js):**
-
-```javascript
-const passport = require('passport');
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
-
-passport.use(new GoogleStrategy({
-    clientID: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: "/auth/google/callback"
-  },
-  async (accessToken, refreshToken, profile, done) => {
-    // Find or create user
-    let user = await User.findOne({ googleId: profile.id });
-    if (!user) {
-      user = await User.create({
-        googleId: profile.id,
-        email: profile.emails[0].value,
-        name: profile.displayName
-      });
-    }
-    return done(null, user);
-  }
-));
-
-// Routes
-app.get('/auth/google',
-  passport.authenticate('google', { scope: ['profile', 'email'] })
-);
-
-app.get('/auth/google/callback',
-  passport.authenticate('google', { failureRedirect: '/login' }),
-  (req, res) => {
-    res.redirect('/dashboard');
-  }
-);
-```
-
 ---
 
 ### 4. API Keys
@@ -315,48 +155,6 @@ app.get('/auth/google/callback',
 - Machine-to-machine authentication
 - Simple service authentication
 
-**Implementation:**
-
-```javascript
-// Generate API key
-const crypto = require('crypto');
-const apiKey = crypto.randomBytes(32).toString('hex');
-
-// Store hashed version
-const hashedKey = crypto.createHash('sha256').update(apiKey).digest('hex');
-await ApiKey.create({ key: hashedKey, userId: user.id });
-
-// Middleware
-const authenticateApiKey = async (req, res, next) => {
-  const apiKey = req.headers['x-api-key'];
-  if (!apiKey) {
-    return res.status(401).json({ error: 'API key required' });
-  }
-
-  const hashedKey = crypto.createHash('sha256').update(apiKey).digest('hex');
-  const keyRecord = await ApiKey.findOne({ key: hashedKey });
-
-  if (!keyRecord) {
-    return res.status(401).json({ error: 'Invalid API key' });
-  }
-
-  req.userId = keyRecord.userId;
-  next();
-};
-```
-
-**Pros:**
-
-- ✅ Simple to implement
-- ✅ Good for internal services
-- ✅ Easy to rotate
-
-**Cons:**
-
-- ❌ Less secure than OAuth
-- ❌ No fine-grained permissions
-- ❌ Hard to manage at scale
-
 ---
 
 ## Authorization Methods
@@ -365,34 +163,72 @@ const authenticateApiKey = async (req, res, next) => {
 
 Users assigned to roles, roles have permissions.
 
-```javascript
-// Define roles and permissions
-const roles = {
-  admin: ['user:read', 'user:write', 'user:delete', 'post:read', 'post:write', 'post:delete'],
-  editor: ['post:read', 'post:write', 'user:read'],
-  user: ['post:read', 'user:read:own']
-};
+```mermaid
+graph LR
+    subgraph Users["👥 USERS"]
+        U1["👤 Alice<br/><small>alice@company.com</small>"]
+        U2["👤 Bob<br/><small>bob@company.com</small>"]
+        U3["👤 Charlie<br/><small>charlie@company.com</small>"]
+        U4["👤 Diana<br/><small>diana@company.com</small>"]
+    end
 
-// Authorization middleware
-const authorize = (...permissions) => {
-  return (req, res, next) => {
-    const userRole = req.user.role;
-    const userPermissions = roles[userRole] || [];
+    subgraph Roles["🎭 ROLES"]
+        R1["🔴 ADMIN<br/><small>Full System Access</small>"]
+        R2["🟠 EDITOR<br/><small>Content Management</small>"]
+        R3["🟢 VIEWER<br/><small>Read-Only Access</small>"]
+    end
 
-    const hasPermission = permissions.every(p => userPermissions.includes(p));
+    subgraph UserPerms["👤 USER PERMISSIONS"]
+        P1["✏️ user:create"]
+        P2["👀 user:read"]
+        P3["📝 user:update"]
+    end
 
-    if (!hasPermission) {
-      return res.status(403).json({ error: 'Insufficient permissions' });
-    }
+    subgraph PostPerms["📄 POST PERMISSIONS"]
+        P4["➕ post:create"]
+        P5["👀 post:read"]
+        P6["📝 post:update"]
+        P7["🗑️ post:delete"]
+    end
 
-    next();
-  };
-};
+    subgraph OtherPerms["⚙️ OTHER PERMISSIONS"]
+        P8["⭐ system:admin"]
+    end
 
-// Usage
-app.delete('/users/:id', authenticateToken, authorize('user:delete'), (req, res) => {
-  // Delete user
-});
+    U1 ====>|"assigned to"| R1
+    U2 ====>|"assigned to"| R2
+    U3 ====>|"assigned to"| R2
+    U4 ====>|"assigned to"| R3
+
+    R1 -->|"has"| P1
+    R1 -->|"has"| P2
+    R1 -->|"has"| P3
+
+    R2 -->|"has"| P4
+    R2 -->|"has"| P5
+    R2 -->|"has"| P6
+    R2 -->|"has"| P7
+
+    R3 -->|"has"| P5
+    R3 -->|"has"| P8
+
+    style U1 fill:#e3f2fd,stroke:#1976d2,stroke-width:3px,color:#000
+    style U2 fill:#e3f2fd,stroke:#1976d2,stroke-width:3px,color:#000
+    style U3 fill:#e3f2fd,stroke:#1976d2,stroke-width:3px,color:#000
+    style U4 fill:#e3f2fd,stroke:#1976d2,stroke-width:3px,color:#000
+
+    style R1 fill:#ffebee,stroke:#c62828,stroke-width:4px,color:#000
+    style R2 fill:#fff3e0,stroke:#ef6c00,stroke-width:4px,color:#000
+    style R3 fill:#e8f5e9,stroke:#388e3c,stroke-width:4px,color:#000
+
+    style P1 fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#000
+    style P2 fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#000
+    style P3 fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#000
+    style P4 fill:#fff9c4,stroke:#f9a825,stroke-width:2px,color:#000
+    style P5 fill:#fff9c4,stroke:#f9a825,stroke-width:2px,color:#000
+    style P6 fill:#fff9c4,stroke:#f9a825,stroke-width:2px,color:#000
+    style P7 fill:#fff9c4,stroke:#f9a825,stroke-width:2px,color:#000
+    style P8 fill:#e0f2f1,stroke:#00796b,stroke-width:2px,color:#000
 ```
 
 ---
@@ -401,37 +237,109 @@ app.delete('/users/:id', authenticateToken, authorize('user:delete'), (req, res)
 
 Permissions based on attributes (user, resource, environment).
 
-```javascript
-const canAccess = (user, resource, action) => {
-  // Owner can edit their own posts
-  if (action === 'edit' && resource.authorId === user.id) {
-    return true;
-  }
+**Relation Graph:**
 
-  // Admin can edit any post
-  if (user.role === 'admin') {
-    return true;
-  }
+```mermaid
+graph LR
+    subgraph Inputs["📥 INPUT ATTRIBUTES"]
+        direction TB
 
-  // Published posts are readable by anyone
-  if (action === 'read' && resource.status === 'published') {
-    return true;
-  }
+        subgraph UserAttrs["👤 USER"]
+            UA1["🆔 User ID: 12345"]
+            UA2["🎭 Role: Editor"]
+            UA3["🏢 Dept: Marketing"]
+            UA4["🔐 Clearance: L3"]
+            UA5["📍 Location: NYC"]
+        end
 
-  return false;
-};
+        subgraph ResourceAttrs["📦 RESOURCE"]
+            RA1["📄 Type: Document"]
+            RA2["👤 Owner: 67890"]
+            RA3["📊 Status: Published"]
+            RA4["🔒 Class: Confidential"]
+            RA5["📅 Date: 2025-01-15"]
+        end
 
-// Usage
-app.put('/posts/:id', authenticateToken, async (req, res) => {
-  const post = await Post.findById(req.params.id);
+        subgraph EnvAttrs["🌍 ENVIRONMENT"]
+            EA1["🕐 Time: 14:30"]
+            EA2["🌐 IP: 192.168.1.100"]
+            EA3["📱 Device: Desktop"]
+            EA4["🔌 Network: VPN"]
+        end
 
-  if (!canAccess(req.user, post, 'edit')) {
-    return res.status(403).json({ error: 'Access denied' });
-  }
+        subgraph ActionAttrs["⚡ ACTION"]
+            AC["🎯 Type: READ"]
+        end
+    end
 
-  // Update post
-});
+    subgraph Processing["🧠 POLICY ENGINE"]
+        direction TB
+        PE1["⚙️ POLICY EVALUATION"]
+        PE2["📋 Rule Matching"]
+        PE3["🔍 Attribute Analysis"]
+        PE4["⚖️ Decision Logic"]
+
+        PE1 --> PE2
+        PE2 --> PE3
+        PE3 --> PE4
+    end
+
+    subgraph Output["✅ OUTPUT"]
+        direction TB
+        Decision["🎯 ACCESS DECISION"]
+        Allow["✅ ALLOW"]
+        Deny["❌ DENY"]
+
+        Decision --> Allow
+        Decision --> Deny
+    end
+
+    UA1 & UA2 & UA3 & UA4 & UA5 ===>|User Context| PE1
+    RA1 & RA2 & RA3 & RA4 & RA5 ===>|Resource Context| PE1
+    EA1 & EA2 & EA3 & EA4 ===>|Environment Context| PE1
+    AC ===>|Action Context| PE1
+
+    PE4 ===>|Final Decision| Decision
+
+    style UA1 fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#000
+    style UA2 fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#000
+    style UA3 fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#000
+    style UA4 fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#000
+    style UA5 fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#000
+
+    style RA1 fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,color:#000
+    style RA2 fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,color:#000
+    style RA3 fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,color:#000
+    style RA4 fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,color:#000
+    style RA5 fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,color:#000
+
+    style EA1 fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#000
+    style EA2 fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#000
+    style EA3 fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#000
+    style EA4 fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#000
+
+    style AC fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px,color:#000
+
+    style PE1 fill:#ffebee,stroke:#c62828,stroke-width:3px,color:#000
+    style PE2 fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#000
+    style PE3 fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#000
+    style PE4 fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#000
+
+    style Decision fill:#fff9c4,stroke:#f57c00,stroke-width:4px,color:#000
+    style Allow fill:#c8e6c9,stroke:#388e3c,stroke-width:3px,color:#000
+    style Deny fill:#ffcdd2,stroke:#c62828,stroke-width:3px,color:#000
 ```
+
+**RBAC vs ABAC Comparison:**
+
+| Aspect | RBAC | ABAC |
+|--------|------|------|
+| **Complexity** | Simple, easy to understand | Complex, requires policy engine |
+| **Flexibility** | Limited to role definitions | Highly flexible with attributes |
+| **Scalability** | May require many roles | Scales with policy complexity |
+| **Granularity** | Coarse-grained | Fine-grained |
+| **Use Case** | Standard enterprise applications | Dynamic, context-aware systems |
+| **Example** | Admin can delete all posts | Owner can delete own posts on weekdays |
 
 ---
 
@@ -469,30 +377,6 @@ app.put('/posts/:id', authenticateToken, async (req, res) => {
 ## Password Security
 
 ### Password Hashing
-
-```javascript
-const bcrypt = require('bcrypt');
-const argon2 = require('argon2');
-
-// bcrypt (recommended, widely supported)
-const hashPassword = async (password) => {
-  const saltRounds = 12;
-  return await bcrypt.hash(password, saltRounds);
-};
-
-const verifyPassword = async (password, hash) => {
-  return await bcrypt.compare(password, hash);
-};
-
-// Argon2 (most secure, winner of Password Hashing Competition)
-const hashPasswordArgon2 = async (password) => {
-  return await argon2.hash(password);
-};
-
-const verifyPasswordArgon2 = async (password, hash) => {
-  return await argon2.verify(hash, password);
-};
-```
 
 | Algorithm | Security | Speed | Recommendation |
 |-----------|----------|-------|----------------|
@@ -544,90 +428,95 @@ const validatePassword = (password) => {
 
 ## Multi-Factor Authentication (MFA)
 
-### Time-based One-Time Password (TOTP)
+### MFA Methods Comparison
 
-```javascript
-const speakeasy = require('speakeasy');
-const QRCode = require('qrcode');
+| Method | Security Level | User Experience | Cost | Best For |
+|--------|----------------|-----------------|------|----------|
+| **TOTP (Authenticator Apps)** | ⭐⭐⭐⭐⭐ High | Easy (one-time setup) | Free | Most applications |
+| **SMS OTP** | ⭐⭐⭐ Medium | Very easy | Pay per SMS | Consumer apps (not recommended for high security) |
+| **Email OTP** | ⭐⭐ Low-Medium | Easy | Free | Low-security applications |
+| **Hardware Keys (WebAuthn)** | ⭐⭐⭐⭐⭐ Highest | Medium (requires device) | $20-50 per key | High-security applications |
+| **Push Notifications** | ⭐⭐⭐⭐ High | Very easy | Infrastructure cost | Mobile-first applications |
+| **Biometric** | ⭐⭐⭐⭐⭐ High | Excellent | Device-dependent | Mobile apps with biometric support |
 
-// Generate secret
-app.post('/mfa/setup', authenticateToken, async (req, res) => {
-  const secret = speakeasy.generateSecret({
-    name: `MyApp (${req.user.email})`,
-    issuer: 'MyApp'
-  });
+### MFA Providers & Solutions
 
-  // Save secret to user
-  await User.updateOne(
-    { _id: req.user.userId },
-    { mfaSecret: secret.base32 }
-  );
+#### Managed MFA Services
 
-  // Generate QR code
-  const qrCodeUrl = await QRCode.toDataURL(secret.otpauth_url);
+| Provider | Pricing | MFA Methods | Best For | Setup Time |
+|----------|---------|-------------|----------|------------|
+| **Auth0** | Free tier: 7,000 MAU<br/>Then from $23/mo | TOTP, SMS, Email, Push, WebAuthn, Biometric | Enterprise, Startups | ⏱️ 30 min |
+| **Duo Security (Cisco)** | From $3/user/month<br/>30-day free trial | TOTP, SMS, Push, WebAuthn, Phone callback | Enterprise, Healthcare, Finance | ⏱️ 1-2 hours |
+| **Okta** | From $2/user/month<br/>Free tier: 15,000 MAU | TOTP, SMS, Email, Push, WebAuthn, Biometric | Large Enterprise, SSO | ⏱️ 2-4 hours |
+| **Microsoft Entra (Azure AD)** | Included with Azure AD<br/>$6/user/month (P1) | TOTP, SMS, Push (Authenticator), WebAuthn | Microsoft ecosystem | ⏱️ 1 hour |
+| **AWS Cognito** | Free tier: 50,000 MAU<br/>$0.0055/MAU after | TOTP, SMS | AWS-heavy infrastructure | ⏱️ 1-2 hours |
+| **Twilio Authy** | SMS pricing varies<br/>TOTP is free | TOTP, SMS, Push | Developers, Custom solutions | ⏱️ 30 min |
+| **Google Identity Platform** | Pay-as-you-go<br/>$0.06 per verification | TOTP, SMS, Phone | Google ecosystem | ⏱️ 30 min |
 
-  res.json({ secret: secret.base32, qrCode: qrCodeUrl });
-});
+#### Open-Source MFA Solutions
 
-// Verify TOTP
-app.post('/mfa/verify', authenticateToken, async (req, res) => {
-  const { token } = req.body;
-  const user = await User.findById(req.user.userId);
+| Solution | Language/Stack | MFA Methods | Deployment | GitHub Stars | Best For |
+|----------|----------------|-------------|------------|--------------|----------|
+| **PrivacyIDEA** | Python/Flask | TOTP, SMS, Email, WebAuthn, Push | Self-hosted | ⭐ 1.5k | Enterprise self-hosted |
+| **FreeOTP** | Java/Kotlin | TOTP, HOTP | Mobile app (client-side) | ⭐ 600+ | Client-side TOTP |
+| **Authelia** | Go | TOTP, WebAuthn, Duo Push | Docker/Kubernetes | ⭐ 22k+ | Homelab, Self-hosted services |
+| **Keycloak** | Java | TOTP, WebAuthn, SMS (via SPI) | Self-hosted/Docker | ⭐ 23k+ | Enterprise IAM, SSO |
+| **LinOTP** | Python | TOTP, SMS, Email, WebAuthn | Self-hosted | ⭐ 300+ | Enterprise on-premise |
+| **Authentik** | Python/Go | TOTP, WebAuthn, Email, SMS | Docker/Kubernetes | ⭐ 14k+ | Modern self-hosted SSO |
 
-  const verified = speakeasy.totp.verify({
-    secret: user.mfaSecret,
-    encoding: 'base32',
-    token: token,
-    window: 2  // Allow 2 time steps (±60 seconds)
-  });
+#### DIY Libraries for Custom Implementation
 
-  if (!verified) {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
+| Library | Language | MFA Types | Use Case | Installation |
+|---------|----------|-----------|----------|--------------|
+| **speakeasy** | JavaScript/Node.js | TOTP, HOTP | Custom Node.js backends | `npm install speakeasy` |
+| **pyotp** | Python | TOTP, HOTP | Python applications | `pip install pyotp` |
+| **google-auth-library** | JavaScript | TOTP (Google Authenticator) | Google-compatible TOTP | `npm install google-auth-library` |
+| **WebAuthn4J** | Java | WebAuthn (FIDO2) | Java Spring applications | Maven/Gradle |
+| **duo_universal** | Multi-language | Duo Push, TOTP | Duo integration | Language-specific |
+| **SimpleWebAuthn** | JavaScript | WebAuthn (passkeys) | Modern passwordless auth | `npm install @simplewebauthn/server` |
 
-  res.json({ message: 'MFA verified' });
-});
-```
+### Quick Setup Recommendations
 
-### SMS/Email OTP
+#### For Startups & Small Teams
+**Recommended**: **Auth0** or **Twilio Authy**
+- Generous free tier
+- Quick setup (< 1 hour)
+- Supports multiple MFA methods
+- Good documentation
 
-```javascript
-const crypto = require('crypto');
+#### For Enterprise
+**Recommended**: **Okta** or **Duo Security**
+- Advanced policy controls
+- SSO integration
+- Compliance certifications (SOC2, HIPAA)
+- Dedicated support
 
-// Generate and send OTP
-app.post('/mfa/send-otp', authenticateToken, async (req, res) => {
-  const otp = crypto.randomInt(100000, 999999).toString();
-  const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+#### For Self-Hosted / Privacy-Focused
+**Recommended**: **Authelia** or **Authentik**
+- Open-source and self-hosted
+- No vendor lock-in
+- Full control over data
+- Active community
 
-  await User.updateOne(
-    { _id: req.user.userId },
-    { otp: await bcrypt.hash(otp, 10), otpExpiresAt: expiresAt }
-  );
+#### For AWS-Heavy Infrastructure
+**Recommended**: **AWS Cognito**
+- Native AWS integration
+- Pay-as-you-go pricing
+- Works with Lambda, API Gateway
+- Good for serverless
 
-  // Send OTP via SMS or email
-  await sendSMS(user.phone, `Your OTP is: ${otp}`);
+### SMS/Email Providers for OTP
 
-  res.json({ message: 'OTP sent' });
-});
+| Provider | Type | Pricing | Global Coverage | Best For |
+|----------|------|---------|-----------------|----------|
+| **Twilio** | SMS/Email | $0.0079 per SMS | 180+ countries | Global applications |
+| **Amazon SNS** | SMS | $0.00645 per SMS | 200+ countries | AWS infrastructure |
+| **MessageBird** | SMS | From $0.015 per SMS | 200+ countries | European market |
+| **SendGrid** | Email | Free: 100/day<br/>$15/mo: 40k/mo | Global | Email OTP |
+| **Plivo** | SMS | From $0.0035 per SMS | 190+ countries | Cost-effective SMS |
+| **Vonage (Nexmo)** | SMS | $0.0058 per SMS | 200+ countries | Enterprise SMS |
 
-// Verify OTP
-app.post('/mfa/verify-otp', authenticateToken, async (req, res) => {
-  const { otp } = req.body;
-  const user = await User.findById(req.user.userId);
-
-  if (new Date() > user.otpExpiresAt) {
-    return res.status(401).json({ error: 'OTP expired' });
-  }
-
-  const valid = await bcrypt.compare(otp, user.otp);
-
-  if (!valid) {
-    return res.status(401).json({ error: 'Invalid OTP' });
-  }
-
-  res.json({ message: 'OTP verified' });
-});
-```
+**Note**: SMS-based MFA is vulnerable to SIM swapping attacks. For high-security applications, use TOTP, WebAuthn, or hardware keys instead.
 
 ---
 
@@ -659,73 +548,7 @@ sequenceDiagram
     Server->>Client: Success
 ```
 
-**Implementation:**
-
-```javascript
-// Refresh token endpoint
-app.post('/auth/refresh', async (req, res) => {
-  const { refreshToken } = req.body;
-
-  if (!refreshToken) {
-    return res.status(401).json({ error: 'Refresh token required' });
-  }
-
-  try {
-    const payload = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
-
-    // Check if refresh token is in database (for rotation)
-    const storedToken = await RefreshToken.findOne({
-      userId: payload.userId,
-      token: refreshToken
-    });
-
-    if (!storedToken) {
-      return res.status(403).json({ error: 'Invalid refresh token' });
-    }
-
-    // Generate new tokens
-    const newAccessToken = jwt.sign(
-      { userId: payload.userId },
-      process.env.JWT_SECRET,
-      { expiresIn: '15m' }
-    );
-
-    const newRefreshToken = jwt.sign(
-      { userId: payload.userId },
-      process.env.REFRESH_TOKEN_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    // Store new refresh token, invalidate old one
-    await RefreshToken.deleteOne({ token: refreshToken });
-    await RefreshToken.create({ userId: payload.userId, token: newRefreshToken });
-
-    res.json({ token: newAccessToken, refreshToken: newRefreshToken });
-  } catch (error) {
-    res.status(403).json({ error: 'Invalid refresh token' });
-  }
-});
-```
-
 ---
-
-## Security Best Practices
-
-### Rate Limiting
-
-```javascript
-const rateLimit = require('express-rate-limit');
-
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,  // 15 minutes
-  max: 5,  // 5 requests per window
-  message: 'Too many login attempts, please try again later'
-});
-
-app.post('/login', authLimiter, async (req, res) => {
-  // Login logic
-});
-```
 
 ## Tags
 

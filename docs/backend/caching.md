@@ -114,31 +114,7 @@ flowchart TB
 
 ### Cache-Control Headers
 
-```javascript
-// Express.js
-app.get('/api/products', (req, res) => {
-  res.set('Cache-Control', 'public, max-age=3600'); // 1 hour
-  res.json(products);
-});
-
-// Static assets (never changes)
-app.use('/static', express.static('public', {
-  maxAge: '1y',
-  immutable: true
-}));
-
-// Private data (browser only)
-app.get('/api/user/profile', (req, res) => {
-  res.set('Cache-Control', 'private, max-age=300'); // 5 minutes
-  res.json(userProfile);
-});
-
-// No cache
-app.get('/api/realtime/stock', (req, res) => {
-  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
-  res.json(stockPrice);
-});
-```
+🕒 `Cache-Control` = <i>"How long can you keep this item before checking again?"</i>
 
 **Common Directives:**
 
@@ -157,27 +133,27 @@ app.get('/api/realtime/stock', (req, res) => {
 
 ### ETag (Entity Tag)
 
-```javascript
-const crypto = require('crypto');
+🔍 `ETag` = <i>"If you check, how do you know whether it changed?"</i>
 
-app.get('/api/article/:id', async (req, res) => {
-  const article = await db.articles.findById(req.params.id);
+### Practical Guide
 
-  // Generate ETag from content
-  const etag = crypto.createHash('md5')
-    .update(JSON.stringify(article))
-    .digest('hex');
+| Scenario | Use Cache-Control | Use ETag | Why |
+|----------|-------------------|----------|-----|
+| **Static assets (images, JS, CSS)** | ✅ Yes — long `max-age` or `immutable` | ❌ Not needed if versioned filenames | File content rarely changes |
+| **API responses (e.g. /users/123)** | ✅ Yes — short `max-age`, `no-cache` | ✅ Yes — strong ETag for conditional GET | Data can change, but often doesn't |
+| **Dynamic HTML pages** | ⚠️ Maybe (`no-cache`, `must-revalidate`) | ✅ Yes | Content can change unpredictably |
+| **Private user data** | ✅ `private`, `no-store` | ❌ | Should not be cached at all |
+| **Public JSON feeds** | ✅ `public`, `max-age=60` | ✅ Yes | Ideal for efficient polling |
 
-  // Check if client has current version
-  if (req.headers['if-none-match'] === etag) {
-    return res.status(304).end(); // Not Modified
-  }
+### Quick Reference Guide
 
-  res.set('ETag', etag);
-  res.set('Cache-Control', 'private, max-age=0, must-revalidate');
-  res.json(article);
-});
-```
+| Goal | Use |
+|------|-----|
+| **Control how long data stays fresh** | `Cache-Control` |
+| **Detect if data changed** | `ETag` |
+| **Save bandwidth on revalidation** | `ETag` + `Cache-Control: no-cache` |
+| **Avoid caching sensitive data** | `Cache-Control: no-store` |
+| **Cache versioned static files forever** | `Cache-Control: public, max-age=31536000, immutable` |
 
 ---
 
@@ -243,206 +219,6 @@ await invalidateByTag('category:electronics');
 ```
 
 ---
-
-## Advanced Patterns
-
-### Stale-While-Revalidate
-
-Serve stale data while fetching fresh data in background.
-
-```javascript
-const getSWR = async (key, fetchFn, ttl = 3600, staleTime = 300) => {
-  const cached = await redis.get(key);
-
-  if (cached) {
-    const data = JSON.parse(cached);
-    const cachedAt = data._cachedAt;
-
-    // Check if stale (older than staleTime)
-    if (Date.now() - cachedAt > staleTime * 1000) {
-      // Refresh in background
-      fetchFn().then(fresh => {
-        redis.setex(key, ttl, JSON.stringify({
-          ...fresh,
-          _cachedAt: Date.now()
-        }));
-      });
-    }
-
-    return data;
-  }
-
-  // Cache miss - fetch fresh
-  const fresh = await fetchFn();
-  await redis.setex(key, ttl, JSON.stringify({
-    ...fresh,
-    _cachedAt: Date.now()
-  }));
-
-  return fresh;
-};
-
-// Usage
-const products = await getSWR(
-  'products:list',
-  () => db.products.find(),
-  3600,  // 1 hour TTL
-  300    // Revalidate after 5 minutes
-);
-```
-
----
-
-### Cache Stampede Prevention
-
-Prevent multiple requests from regenerating cache simultaneously.
-
-```javascript
-const Redlock = require('redlock');
-const redlock = new Redlock([redis]);
-
-const getWithLock = async (key, fetchFn, ttl = 3600) => {
-  const cached = await redis.get(key);
-  if (cached) {
-    return JSON.parse(cached);
-  }
-
-  const lockKey = `lock:${key}`;
-
-  try {
-    // Try to acquire lock
-    const lock = await redlock.lock(lockKey, 10000); // 10 second lock
-
-    // Check cache again (maybe another process filled it)
-    const cached = await redis.get(key);
-    if (cached) {
-      await lock.unlock();
-      return JSON.parse(cached);
-    }
-
-    // Fetch fresh data
-    const fresh = await fetchFn();
-    await redis.setex(key, ttl, JSON.stringify(fresh));
-
-    await lock.unlock();
-    return fresh;
-
-  } catch (error) {
-    // Couldn't acquire lock - wait and retry
-    await new Promise(resolve => setTimeout(resolve, 100));
-    return getWithLock(key, fetchFn, ttl);
-  }
-};
-```
-
----
-
-### Multi-Layer Caching
-
-```javascript
-class MultiLayerCache {
-  constructor() {
-    this.l1 = new NodeCache({ stdTTL: 60 }); // In-memory (1 min)
-    this.l2 = redis; // Redis (shared)
-  }
-
-  async get(key) {
-    // L1 cache (fastest)
-    let value = this.l1.get(key);
-    if (value) {
-      return value;
-    }
-
-    // L2 cache (shared)
-    const cached = await this.l2.get(key);
-    if (cached) {
-      value = JSON.parse(cached);
-      this.l1.set(key, value); // Promote to L1
-      return value;
-    }
-
-    return null;
-  }
-
-  async set(key, value, ttl) {
-    this.l1.set(key, value, ttl);
-    await this.l2.setex(key, ttl, JSON.stringify(value));
-  }
-
-  async del(key) {
-    this.l1.del(key);
-    await this.l2.del(key);
-  }
-}
-
-const cache = new MultiLayerCache();
-```
-
----
-
-### Cache Warming
-
-Preload cache with critical data on startup.
-
-```javascript
-const warmCache = async () => {
-  console.log('Warming cache...');
-
-  // Load popular products
-  const products = await db.products.find({ popular: true });
-  for (const product of products) {
-    await redis.setex(
-      `product:${product.id}`,
-      3600,
-      JSON.stringify(product)
-    );
-  }
-
-  // Load configuration
-  const config = await db.config.find();
-  await redis.setex('config', 86400, JSON.stringify(config));
-
-  console.log('Cache warmed');
-};
-
-// Run on server startup
-app.listen(3000, async () => {
-  await warmCache();
-  console.log('Server ready');
-});
-```
-
----
-
-### Database Query Caching
-
-```javascript
-// Wrapper for database queries
-const cachedQuery = async (cacheKey, query, ttl = 3600) => {
-  const cached = await redis.get(cacheKey);
-  if (cached) {
-    return JSON.parse(cached);
-  }
-
-  const result = await query();
-  await redis.setex(cacheKey, ttl, JSON.stringify(result));
-
-  return result;
-};
-
-// Usage
-const getProducts = async (category) => {
-  return cachedQuery(
-    `products:category:${category}`,
-    () => db.products.find({ category }),
-    3600
-  );
-};
-```
-
----
-
-## Monitoring & Metrics
 
 ### Key Metrics to Track
 

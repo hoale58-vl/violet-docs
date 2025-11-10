@@ -71,15 +71,6 @@ graph TD
 
 ## Key Features
 
-### Key Characteristics
-
-- **Columnar Storage**: Data is stored by columns rather than rows, dramatically improving compression ratios and query performance for analytical workloads
-- **Vectorized Query Execution**: Processes data in batches rather than row-by-row, significantly reducing processing time and enabling parallelization
-- **Real-Time Data Ingestion**: Handles millions of events per second with low latency
-- **Horizontal Scalability**: Scales across multiple nodes for distributed analytical workloads
-- **SQL Support**: Uses standard SQL with extensions for analytical queries
-- **Compression**: Achieves 10x-100x compression ratios due to columnar format
-
 ### 1. Lightning-Fast Queries
 
 ```sql
@@ -205,54 +196,69 @@ docker run -d \
   -p 9000:9000 \
   --ulimit nofile=262144:262144 \
   clickhouse/clickhouse-server
-
-# Connect with CLI client
-docker run -it --rm \
-  --link clickhouse-server:clickhouse \
-  clickhouse/clickhouse-client \
-  --host clickhouse
 ```
 
 ### Docker Compose (Development)
 
+Create `./clickhouse/disable-telemetry.xml`:
+
+```xml
+<clickhouse>
+    <opentelemetry_span_log remove="1"/>
+    <query_log remove="1"/>
+    <query_thread_log remove="1"/>
+    <part_log remove="1"/>
+    <metric_log remove="1"/>
+    <asynchronous_metric_log remove="1"/>
+    <trace_log remove="1"/>
+    <session_log remove="1"/>
+    <text_log remove="1"/>
+    <crash_log remove="1"/>
+</clickhouse>
+```
+
+Create `./clickhouse/postgres.xml`:
+
+```xml
+<clickhouse>
+    <postgresql_port>9005</postgresql_port>
+</clickhouse>
+```
+
 Create `docker-compose.yml`:
 
 ```yaml
-version: '3.8'
-
+name: clickhouse
 services:
   clickhouse:
-    image: clickhouse/clickhouse-server:latest
     container_name: clickhouse
+    hostname: clickhouse
+    image: clickhouse/clickhouse-server:latest
+    restart: always
     ports:
-      - "8123:8123"  # HTTP interface
-      - "9000:9000"  # Native interface
-      - "9009:9009"  # Inter-server communication
+      - "8123:8123"
+      - "9000:9000"
+      - "9004:9004"
+      - "9005:9005"
+    environment:
+      CLICKHOUSE_DB: clickhouse
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: 5M8TDqtRi86dSvXv2y7FkBjUoL8fRs
+      CLICKHOUSE_LOG_LEVEL: WARNING
     volumes:
-      - ./clickhouse-data:/var/lib/clickhouse
-      - ./clickhouse-config:/etc/clickhouse-server
+      - ./data/clickhouse:/var/lib/clickhouse/
+      - ./clickhouse/postgres.xml:/etc/clickhouse-server/config.d/postgres.xml:ro
+      - ./clickhouse/disable-telemetry.xml:/etc/clickhouse-server/config.d/disable-telemetry.xml:ro
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query=SELECT 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
     ulimits:
       nofile:
         soft: 262144
         hard: 262144
-    environment:
-      CLICKHOUSE_DB: analytics
-      CLICKHOUSE_USER: admin
-      CLICKHOUSE_PASSWORD: secure_password
-      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
-
-  clickhouse-client:
-    image: clickhouse/clickhouse-client:latest
-    container_name: clickhouse-client
-    depends_on:
-      - clickhouse
-    command: ['--host', 'clickhouse']
-    profiles:
-      - client
-
-volumes:
-  clickhouse-data:
-  clickhouse-config:
 ```
 
 Start the cluster:
@@ -260,112 +266,39 @@ Start the cluster:
 ```bash
 # Start server
 docker-compose up -d
-
 # Connect with client
 docker-compose run --rm clickhouse-client
-
 # Or use HTTP interface
 curl 'http://localhost:8123/?query=SELECT+version()'
 ```
 
-### Kubernetes with Altinity Operator
+### Altinity Helm Chart
 
-#### Install the Operator
+#### Add chart dependency
+
+- Ref: https://github.com/Altinity/helm-charts/tree/main/charts/clickhouse
 
 ```bash
-# Install Altinity ClickHouse Operator
-kubectl apply -f https://raw.githubusercontent.com/Altinity/clickhouse-operator/master/deploy/operator/clickhouse-operator-install-bundle.yaml
+helm repo add altinity https://helm.altinity.com
 
-# Verify installation
-kubectl get pods -n kube-system | grep clickhouse-operator
+helm upgrade --install clickhouse-operator \
+  altinity/altinity-clickhouse-operator \
+  --version 0.25.5 \
+  --namespace clickhouse \
+  --create-namespace
 ```
-
-#### Deploy ClickHouse Cluster
-
-Create `clickhouse-cluster.yaml`:
 
 ```yaml
-apiVersion: "clickhouse.altinity.com/v1"
-kind: "ClickHouseInstallation"
-metadata:
-  name: "clickhouse-cluster"
-  namespace: analytics
-spec:
-  configuration:
-    clusters:
-      - name: "main-cluster"
-        layout:
-          shardsCount: 4
-          replicasCount: 3
-        schemaPolicy:
-          replica: "All"
-          shard: "All"
-    zookeeper:
-      nodes:
-        - host: zookeeper-0.zookeeper-headless
-          port: 2181
-        - host: zookeeper-1.zookeeper-headless
-          port: 2181
-        - host: zookeeper-2.zookeeper-headless
-          port: 2181
-    users:
-      admin/password_sha256_hex: "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
-      admin/networks/ip:
-        - "10.0.0.0/8"
-      analytics/password: "analytics_password"
-      analytics/profile: "default"
-  defaults:
-    templates:
-      podTemplate: pod-template
-      dataVolumeClaimTemplate: data-volume
-      logVolumeClaimTemplate: log-volume
-  templates:
-    podTemplates:
-      - name: pod-template
-        spec:
-          containers:
-            - name: clickhouse
-              image: clickhouse/clickhouse-server:24.11
-              resources:
-                requests:
-                  memory: "16Gi"
-                  cpu: "4"
-                limits:
-                  memory: "32Gi"
-                  cpu: "8"
-    volumeClaimTemplates:
-      - name: data-volume
-        spec:
-          accessModes:
-            - ReadWriteOnce
-          resources:
-            requests:
-              storage: 500Gi
-          storageClassName: fast-ssd
-      - name: log-volume
-        spec:
-          accessModes:
-            - ReadWriteOnce
-          resources:
-            requests:
-              storage: 50Gi
+dependencies:
+  ...
+  - name: clickhouse
+    version: 0.3.5
+    repository: https://helm.altinity.com
 ```
 
-Deploy:
+### HyperDX Helm Chart
 
-```bash
-# Apply the configuration
-kubectl apply -f clickhouse-cluster.yaml
-
-# Check status
-kubectl get chi
-
-# Get service endpoints
-kubectl get svc | grep clickhouse
-
-# Connect to ClickHouse
-kubectl exec -it chi-simple-cluster-production-0-0-0 -- clickhouse-client
-```
+- Ref: https://clickhouse.com/docs/use-cases/observability/clickstack/deployment/helm
 
 ### macOS Installation
 
@@ -378,142 +311,6 @@ clickhouse-server
 
 # In another terminal, connect
 clickhouse-client
-```
-
-## Development Guide
-
-### Creating Your First Database
-
-```sql
--- Create database
-CREATE DATABASE analytics;
-
--- Use database
-USE analytics;
-
--- Create table with MergeTree engine
-CREATE TABLE events (
-    timestamp DateTime,
-    event_id UInt64,
-    user_id UInt64,
-    event_name String,
-    country LowCardinality(String),
-    city String,
-    properties String,
-    revenue Decimal(10, 2)
-) ENGINE = MergeTree()
-PARTITION BY toYYYYMM(timestamp)
-ORDER BY (timestamp, user_id, event_id)
-TTL timestamp + INTERVAL 90 DAY
-SETTINGS index_granularity = 8192;
-```
-
-### Common Queries
-
-```sql
--- Time-series aggregation
-SELECT
-    toStartOfHour(timestamp) as hour,
-    uniq(user_id) as unique_users,
-    count() as total_events,
-    sum(revenue) as total_revenue
-FROM events
-WHERE timestamp >= now() - INTERVAL 24 HOUR
-GROUP BY hour
-ORDER BY hour DESC;
-
--- Top N analysis
-SELECT
-    country,
-    city,
-    count() as events,
-    uniq(user_id) as users
-FROM events
-WHERE timestamp >= today()
-GROUP BY country, city
-ORDER BY events DESC
-LIMIT 10;
-
--- Funnel analysis
-SELECT
-    user_id,
-    groupArray(event_name) as funnel
-FROM events
-WHERE timestamp >= today()
-    AND event_name IN ('page_view', 'add_to_cart', 'checkout', 'purchase')
-GROUP BY user_id
-HAVING length(funnel) >= 2
-ORDER BY length(funnel) DESC;
-
--- Retention cohorts
-SELECT
-    toStartOfWeek(timestamp) as cohort_week,
-    countDistinct(user_id) as cohort_size,
-    countDistinctIf(user_id, timestamp >= cohort_week + INTERVAL 7 DAY) as week_1,
-    countDistinctIf(user_id, timestamp >= cohort_week + INTERVAL 14 DAY) as week_2
-FROM events
-GROUP BY cohort_week
-ORDER BY cohort_week DESC;
-```
-
-### Data Migration from PostgreSQL
-
-```sql
--- In ClickHouse, create table matching PostgreSQL schema
-CREATE TABLE users_clickhouse (
-    id UInt64,
-    email String,
-    created_at DateTime,
-    last_login DateTime
-) ENGINE = MergeTree()
-ORDER BY (id, created_at);
-
--- Use MaterializedPostgreSQL engine for real-time sync
-CREATE DATABASE postgres_db
-ENGINE = MaterializedPostgreSQL('postgres:5432', 'database_name', 'user', 'password');
-
--- Or use PostgreSQL table function for one-time import
-INSERT INTO users_clickhouse
-SELECT id, email, created_at, last_login
-FROM postgresql('postgres:5432', 'database_name', 'users', 'user', 'password');
-```
-
-### Performance Tuning
-
-```sql
--- Check query performance
-SELECT
-    query,
-    event_time,
-    query_duration_ms,
-    read_rows,
-    read_bytes
-FROM system.query_log
-WHERE type = 'QueryFinish'
-ORDER BY event_time DESC
-LIMIT 10;
-
--- Check table size and compression
-SELECT
-    table,
-    formatReadableSize(sum(bytes)) as size,
-    sum(rows) as rows,
-    avg(compression_codec) as compression_ratio
-FROM system.parts
-WHERE active
-GROUP BY table;
-
--- Optimize table (merge parts)
-OPTIMIZE TABLE events FINAL;
-
--- Check for slow queries
-SELECT
-    query,
-    query_duration_ms
-FROM system.query_log
-WHERE query_duration_ms > 1000
-ORDER BY query_duration_ms DESC
-LIMIT 20;
 ```
 
 ## Best Practices
